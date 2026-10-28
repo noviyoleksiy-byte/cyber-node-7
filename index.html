@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta
+name="viewport"
+content="width=device-width,
+initial-scale=1.0,
+maximum-scale=1.0,
+user-scalable=no"
+/>
+<title>Cyber Node 7</title>
+<meta
+name="description"
+content="Cyber Node 7 PCB puzzle"
+/>
+<meta
+property="og:title"
+content="Cyber Node 7"
+/>
+<meta
+property="og:description"
+content="Cyber Node 7 PCB puzzle"
+/>
+<meta
+property="og:type"
+content="website"
+/>
+<meta
+name="twitter:card"
+content="summary_large_image"
+/>
+<link
+rel="stylesheet"
+href="/src/style.css"
+/>
+</head>
+<body data-state="title">
+<div class="app-shell">
+<header class="top-cyber-panel">
+<div class="hud-top-row">
+<div class="hud-stat-group">
+<span
+id="hud-level"
+class="hud-level-txt"
+>УР. 1</span>
+<span
+id="hud-bonus"
+class="hud-bonus-txt hidden"
+>БОНУС x2</span>
+<span
+id="hud-coins"
+class="hud-coins-txt"
+>🪙 0</span>
+</div>
+<div class="top-right-btns">
+<button
+id="btn-pause"
+type="button"
+class="btn-gear"
+aria-label="Pause"
+>⏸</button>
+<button
+id="btn-settings"
+type="button"
+class="btn-gear"
+aria-label="Settings"
+>⚙</button>
+</div>
+</div>
+<div class="fox-window-wrap">
+<canvas
+id="fox-canvas"
+width="440"
+height="92"
+></canvas>
+<div class="fox-hud-overlay">
+<div class="fox-score-row">
+<span
+id="hud-score"
+class="score-main"
+>0</span>
+<span
+id="hud-best"
+class="score-sub"
+>Рекорд: 0</span>
+<span
+id="hud-moves"
+class="score-sub"
+>Ходы: 0</span>
+</div>
+<div class="fox-goal-row">
+<span id="hud-goal-text">
+Цепи: 0/2
+</span>
+<span
+id="hud-goal-dots"
+class="goal-color-dots"
+></span>
+</div>
+</div>
+<div
+id="combo-toast"
+class="combo-toast hidden"
+></div>
+</div>
+</header>
+
+<main class="stage-wrap">
+<div
+id="booster-hint"
+class="booster-hint-bar hidden"
+></div>
+<div class="board-container">
+<canvas
+id="board-canvas"
+width="450"
+height="450"
+></canvas>
+</div>
+
+<div
+id="menu-modal"
+class="overlay-backdrop"
+>
+<div class="modal-card">
+<div class="modal-header-row">
+<strong
+id="txt-menu-title"
+class="modal-title"
+>Cyber Node 7</strong>
+<span
+id="menu-coins"
+class="coins-wallet-line"
+>🪙 0</span>
+</div>
+<div class="mode-tabs">
+<button
+id="tab-campaign"
+type="button"
+class="tab-btn active"
+>Кампания</button>
+<button
+id="tab-free"
+type="button"
+class="tab-btn"
+>Свободная сеть</button>
+</div>
+<div
+id="free-net-panel"
+class="free-net-opts hidden"
+>
+<div class="opt-row">
+<span id="lbl-free-colors">
+Цветов:
+</span>
+<div
+id="free-colors-row"
+class="chip-row"
+>
+<button
+type="button"
+class="chip-btn"
+data-colors="4"
+>4</button>
+<button
+type="button"
+class="chip-btn"
+data-colors="5"
+>5</button>
+<button
+type="button"
+class="chip-btn"
+data-colors="6"
+>6</button>
+<button
+type="button"
+class="chip-btn active"
+data-colors="7"
+>7</button>
+<button
+type="button"
+class="chip-btn"
+data-colors="8"
+>8</button>
+</div>
+</div>
+<div class="opt-row">
+<span id="lbl-free-grid">Плата:</span>
+<div
+id="free-grid-row"
+class="chip-row"
+>
+<button
+type="button"
+class="chip-btn"
+data-grid="7"
+>7x7</button>
+<button
+type="button"
+class="chip-btn"
+data-grid="8"
+>8x8</button>
+<button
+type="button"
+class="chip-btn active"
+data-grid="9"
+>9x9</button>
+</div>
+</div>
+</div>
+<div class="theme-picker">
+<button
+id="btn-theme-prev"
+type="button"
+class="arrow-btn"
+aria-label="Previous theme"
+>◀</button>
+<canvas
+id="theme-preview-canvas"
+class="theme-preview-canvas"
+width="200"
+height="68"
+></canvas>
+<button
+id="btn-theme-next"
+type="button"
+class="arrow-btn"
+aria-label="Next theme"
+>▶</button>
+</div>
+<div class="theme-meta-row">
+<span id="txt-theme-name">
+Кибер Обсидиан
+</span>
+<button
+id="btn-theme-buy"
+type="button"
+class="btn-secondary"
+>Открыто</button>
+</div>
+<button
+id="btn-start"
+type="button"
+class="btn-primary"
+data-start="true"
+>Играть</button>
+</div>
+</div>
+
+<div
+id="pause-modal"
+class="overlay-backdrop hidden"
+>
+<div class="modal-card">
+<strong
+id="txt-pause-title"
+class="modal-title"
+>Пауза</strong>
+<div class="stack-col">
+<button
+id="btn-resume"
+type="button"
+class="btn-primary"
+>Продолжить</button>
+<button
+id="btn-pause-restart"
+type="button"
+class="btn-secondary"
+>Заново</button>
+<button
+id="btn-pause-menu"
+type="button"
+class="btn-secondary"
+>В меню</button>
+</div>
+</div>
+</div>
+
+<div
+id="level-modal"
+class="overlay-backdrop hidden"
+>
+<div class="modal-card">
+<strong
+id="txt-level-done"
+class="modal-title"
+>Стол пройден!</strong>
+<div class="stats-box">
+<div class="stats-line">
+<span id="lbl-lv-score">Счет:</span>
+<strong id="val-lv-score">0</strong>
+</div>
+<div class="stats-line">
+<span id="lbl-lv-coins">Монеты:</span>
+<strong id="val-lv-coins">+0</strong>
+</div>
+</div>
+<button
+id="btn-next-level"
+type="button"
+class="btn-primary"
+data-start="true"
+>Следующий стол</button>
+</div>
+</div>
+
+<div
+id="ad-modal"
+class="overlay-backdrop hidden"
+>
+<div class="modal-card">
+<p
+id="txt-ad-prompt"
+class="field-group"
+></p>
+<div
+id="ad-countdown"
+class="stats-box hidden"
+>3</div>
+<div
+id="ad-actions"
+class="stack-col"
+>
+<button
+id="btn-watch-ad"
+type="button"
+class="btn-primary"
+>Реклама (3с)</button>
+<button
+id="btn-pay-rescue"
+type="button"
+class="btn-secondary hidden"
+>За монеты (50)</button>
+<button
+id="btn-skip-ad"
+type="button"
+class="btn-secondary"
+>Нет</button>
+</div>
+</div>
+</div>
+
+<div
+id="over-modal"
+class="overlay-backdrop hidden"
+>
+<div class="modal-card">
+<strong
+id="txt-over-title"
+class="modal-title"
+>Плата перегружена</strong>
+<div class="stats-box">
+<div class="stats-line">
+<span id="lbl-over-score">Счет:</span>
+<strong id="val-over-score">0</strong>
+</div>
+<div class="stats-line">
+<span id="lbl-over-best">
+Рекорд:
+</span>
+<strong id="val-over-best">0</strong>
+</div>
+</div>
+<div class="stack-col">
+<button
+id="btn-restart"
+type="button"
+class="btn-primary"
+data-start="true"
+>Сыграть снова</button>
+<button
+id="btn-over-menu"
+type="button"
+class="btn-secondary"
+>В меню</button>
+</div>
+</div>
+</div>
+
+<aside
+id="settings-drawer"
+class="drawer-panel hidden"
+>
+<div class="row-between">
+<strong
+id="txt-settings-title"
+class="modal-title"
+>Настройки</strong>
+<button
+id="btn-close-settings"
+type="button"
+class="btn-gear"
+aria-label="Close settings"
+>✕</button>
+</div>
+<div class="stack-col">
+<div class="mode-tabs">
+<button
+id="set-tab-campaign"
+type="button"
+class="tab-btn active"
+>Кампания</button>
+<button
+id="set-tab-free"
+type="button"
+class="tab-btn"
+>Свободная сеть</button>
+</div>
+<div class="field-group">
+<span id="txt-lang-label">Язык:</span>
+<div
+id="lang-grid"
+class="lang-grid"
+></div>
+</div>
+<button
+id="btn-sound"
+type="button"
+class="btn-secondary"
+>Звук: ВКЛ</button>
+<label class="field-group">
+<span>
+<span id="txt-sound-vol">
+Громкость звука:
+</span>
+<b id="val-sound-vol">80%</b>
+</span>
+<input
+id="in-sound-vol"
+type="range"
+min="0"
+max="100"
+step="5"
+value="80"
+/>
+</label>
+<button
+id="btn-music"
+type="button"
+class="btn-secondary"
+>Музыка: ВКЛ</button>
+<label class="field-group">
+<span>
+<span id="txt-music-vol">
+Громкость музыки:
+</span>
+<b id="val-music-vol">45%</b>
+</span>
+<input
+id="in-music-vol"
+type="range"
+min="0"
+max="100"
+step="5"
+value="45"
+/>
+</label>
+<button
+id="btn-settings-menu"
+type="button"
+class="btn-secondary"
+>В меню</button>
+<button
+id="btn-open-debug"
+type="button"
+class="btn-primary"
+>ДЕБАГ</button>
+</div>
+</aside>
+
+<aside
+id="debug-drawer"
+class="drawer-panel hidden"
+>
+<div class="row-between">
+<strong class="modal-title">
+ДЕБАГ
+</strong>
+<button
+id="btn-close-debug"
+type="button"
+class="btn-gear"
+aria-label="Close debug"
+>✕</button>
+</div>
+<div class="stack-col">
+<label class="field-group">
+<span>Монеты в кошельке:</span>
+<input
+id="dbg-coins"
+type="number"
+step="25"
+min="0"
+max="999999"
+value="0"
+/>
+</label>
+<label class="field-group">
+<span>Уровень кампании:</span>
+<input
+id="dbg-level"
+type="number"
+step="1"
+min="1"
+max="999"
+value="1"
+/>
+</label>
+<label class="field-group">
+<span>Мин. размер цепи (7):</span>
+<input
+id="dbg-min-cluster"
+type="number"
+step="1"
+min="3"
+max="12"
+value="7"
+/>
+</label>
+<label class="field-group">
+<span>Порог резонанса (10):</span>
+<input
+id="dbg-resonance"
+type="number"
+step="1"
+min="5"
+max="15"
+value="10"
+/>
+</label>
+<label class="field-group">
+<span>Цена Отмены хода:</span>
+<input
+id="dbg-cost-undo"
+type="number"
+step="5"
+min="0"
+max="500"
+value="15"
+/>
+</label>
+<label class="field-group">
+<span>Цена Лазера:</span>
+<input
+id="dbg-cost-laser"
+type="number"
+step="5"
+min="0"
+max="500"
+value="25"
+/>
+</label>
+<label class="field-group">
+<span>Цена Телепорта:</span>
+<input
+id="dbg-cost-teleport"
+type="number"
+step="5"
+min="0"
+max="500"
+value="30"
+/>
+</label>
+<label class="field-group">
+<span>URL нижнего баннера:</span>
+<input
+id="dbg-bottom-url"
+type="text"
+/>
+</label>
+<label class="field-group">
+<span>Картинка баннера:</span>
+<input
+id="dbg-bottom-img"
+type="text"
+/>
+</label>
+</div>
+</aside>
+</main>
+
+<section class="boosters-bar">
+<button
+id="btn-undo"
+type="button"
+class="booster-btn"
+>
+<span class="booster-top">
+<span>↩</span>
+<span id="txt-btn-undo">Отмена</span>
+</span>
+<span
+id="price-undo"
+class="booster-price"
+>🪙 15</span>
+</button>
+<button
+id="btn-laser"
+type="button"
+class="booster-btn"
+>
+<span class="booster-top">
+<span>⚡</span>
+<span id="txt-btn-laser">
+Импульс
+</span>
+</span>
+<span
+id="price-laser"
+class="booster-price"
+>🪙 25</span>
+</button>
+<button
+id="btn-teleport"
+type="button"
+class="booster-btn"
+>
+<span class="booster-top">
+<span>🛸</span>
+<span id="txt-btn-teleport">
+Телепорт
+</span>
+</span>
+<span
+id="price-teleport"
+class="booster-price"
+>🪙 30</span>
+</button>
+</section>
+
+<footer class="bottom-ad-bar">
+<a
+id="bottom-ad-link"
+href="#"
+target="_blank"
+rel="noopener noreferrer"
+class="bottom-ad-link"
+>
+<img
+id="bottom-ad-img"
+alt="Stand With Ukraine"
+referrerpolicy="no-referrer"
+/>
+</a>
+</footer>
+</div>
+<script
+type="module"
+src="/src/main.js"
+></script>
+</body>
+</html>

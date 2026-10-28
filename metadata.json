@@ -1,0 +1,6 @@
+{
+  "name": "Cyber Node 7",
+  "description": "Neon cyberpunk PCB intersection puzzle game with Purple Fox on a cyber hoverboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
