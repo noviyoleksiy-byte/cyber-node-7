@@ -51,15 +51,9 @@ class="hud-bonus-txt hidden"
 <span
 id="hud-coins"
 class="hud-coins-txt"
->🪙 0</span>
+>💎 0</span>
 </div>
 <div class="top-right-btns">
-<button
-id="btn-pause"
-type="button"
-class="btn-gear"
-aria-label="Pause"
->⏸</button>
 <button
 id="btn-settings"
 type="button"
@@ -99,10 +93,6 @@ class="goal-color-dots"
 ></span>
 </div>
 </div>
-<div
-id="combo-toast"
-class="combo-toast hidden"
-></div>
 </div>
 </header>
 
@@ -132,7 +122,7 @@ class="modal-title"
 <span
 id="menu-coins"
 class="coins-wallet-line"
->🪙 0</span>
+>💎 0</span>
 </div>
 <div class="mode-tabs">
 <button
@@ -245,35 +235,6 @@ type="button"
 class="btn-primary"
 data-start="true"
 >Играть</button>
-</div>
-</div>
-
-<div
-id="pause-modal"
-class="overlay-backdrop hidden"
->
-<div class="modal-card">
-<strong
-id="txt-pause-title"
-class="modal-title"
->Пауза</strong>
-<div class="stack-col">
-<button
-id="btn-resume"
-type="button"
-class="btn-primary"
->Продолжить</button>
-<button
-id="btn-pause-restart"
-type="button"
-class="btn-secondary"
->Заново</button>
-<button
-id="btn-pause-menu"
-type="button"
-class="btn-secondary"
->В меню</button>
-</div>
 </div>
 </div>
 
@@ -457,6 +418,11 @@ value="45"
 />
 </label>
 <button
+id="btn-settings-restart"
+type="button"
+class="btn-secondary"
+>Заново</button>
+<button
 id="btn-settings-menu"
 type="button"
 class="btn-secondary"
@@ -593,7 +559,7 @@ class="booster-btn"
 <span
 id="price-undo"
 class="booster-price"
->🪙 15</span>
+>💎 15</span>
 </button>
 <button
 id="btn-laser"
@@ -609,7 +575,7 @@ class="booster-btn"
 <span
 id="price-laser"
 class="booster-price"
->🪙 25</span>
+>💎 25</span>
 </button>
 <button
 id="btn-teleport"
@@ -625,7 +591,7 @@ class="booster-btn"
 <span
 id="price-teleport"
 class="booster-price"
->🪙 30</span>
+>💎 30</span>
 </button>
 </section>
 

@@ -262,29 +262,6 @@ break;
 }
 }
 
-// show floating combo toast banner
-// hides automatically after 1.1s
-let toastTimer = null;
-function showComboToast(
-text,
-hex = '#00f0ff'
-) {
-const box = el('combo-toast');
-if (!box) {
-return;
-}
-box.textContent = text;
-box.style.borderColor = hex;
-box.style.color = hex;
-box.classList.remove('hidden');
-if (toastTimer) {
-clearTimeout(toastTimer);
-}
-toastTimer = setTimeout(() => {
-box.classList.add('hidden');
-}, 1150);
-}
-
 // setup new board table for level
 // places initial nodes and 3 previews
 function setupTable() {
@@ -543,25 +520,6 @@ app.fox.boostMode = res.hasRainbow
 ? 'rainbow'
 : 'color';
 
-const dict = getDict(app.lang);
-const ptsTxt = `+${res.totalPoints}`;
-if (res.hasResonance) {
-showComboToast(
-`${dict.resonanceMsg} ${ptsTxt}`,
-'#ffd700'
-);
-} else if (res.hasRainbow) {
-showComboToast(
-`${dict.rainbowMsg} ${ptsTxt}`,
-'#ff007f'
-);
-} else {
-showComboToast(
-`${dict.chainMsg} ${ptsTxt}`,
-topSig.hex
-);
-}
-
 sound.playDischarge(
 res.maxChainSize,
 res.hasResonance
@@ -602,7 +560,7 @@ sound.playLevelWin();
 el('val-lv-score').textContent =
 String(app.score);
 el('val-lv-coins').textContent =
-`+${bonus} 🪙`;
+`+${bonus} 💎`;
 el('level-modal').classList.remove(
 'hidden'
 );
@@ -967,7 +925,7 @@ promptEl.textContent =
 dict.overloadPrompt;
 const c = app.cfg.rescueCost;
 payBtn.textContent =
-`${dict.payCoins} (${c} 🪙)`;
+`${dict.payCoins} (${c} 💎)`;
 if (app.coins >= c) {
 payBtn.classList.remove('hidden');
 } else {
@@ -1079,11 +1037,11 @@ hint.classList.remove('hidden');
 hint.classList.add('hidden');
 }
 el('price-undo').textContent =
-`🪙 ${app.cfg.undoCost}`;
+`💎 ${app.cfg.undoCost}`;
 el('price-laser').textContent =
-`🪙 ${app.cfg.laserCost}`;
+`💎 ${app.cfg.laserCost}`;
 el('price-teleport').textContent =
-`🪙 ${app.cfg.teleportCost}`;
+`💎 ${app.cfg.teleportCost}`;
 }
 
 // sync all top HUD counters and goal
@@ -1091,9 +1049,9 @@ el('price-teleport').textContent =
 function updateHudUI() {
 const dict = getDict(app.lang);
 el('hud-coins').textContent =
-`🪙 ${app.coins}`;
+`💎 ${app.coins}`;
 el('menu-coins').textContent =
-`🪙 ${app.coins}`;
+`💎 ${app.coins}`;
 el('dbg-coins').value = String(
 app.coins
 );
@@ -1221,7 +1179,7 @@ buyBtn.textContent = dict.free;
 buyBtn.disabled = false;
 } else {
 buyBtn.textContent =
-`${dict.buy} (${cost} 🪙)`;
+`${dict.buy} (${cost} 💎)`;
 buyBtn.disabled = app.coins < cost;
 }
 }
@@ -1273,14 +1231,6 @@ el('lbl-free-grid').textContent =
 dict.gridLabel;
 el('btn-start').textContent =
 dict.play;
-el('txt-pause-title').textContent =
-dict.pauseTitle;
-el('btn-resume').textContent =
-dict.resume;
-el('btn-pause-restart').textContent =
-dict.restart;
-el('btn-pause-menu').textContent =
-dict.toMenu;
 el('txt-level-done').textContent =
 dict.levelDone;
 el('lbl-lv-score').textContent =
@@ -1319,6 +1269,10 @@ sound.musicEnabled
 : dict.musicOff;
 el('txt-music-vol').textContent =
 dict.musicVol;
+const sRest = el(
+'btn-settings-restart'
+);
+sRest.textContent = dict.restart;
 el('btn-settings-menu').textContent =
 dict.toMenu;
 el('btn-open-debug').textContent =
@@ -1372,9 +1326,6 @@ sound.startMusic();
 el('menu-modal').classList.add(
 'hidden'
 );
-el('pause-modal').classList.add(
-'hidden'
-);
 el('level-modal').classList.add(
 'hidden'
 );
@@ -1403,7 +1354,7 @@ setupTable();
 // wire all UI buttons and inputs
 // runs once when page loads
 function bindEvents() {
-// build 10 language buttons in drawer
+// build 3 language buttons in drawer
 // switches dictionary on tap
 const langGrid = el('lang-grid');
 LANG_CODES.forEach((code) => {
@@ -1575,8 +1526,10 @@ el('btn-restart').addEventListener(
 'click',
 startGameNow
 );
-const pRest = el('btn-pause-restart');
-pRest.addEventListener(
+const sRest = el(
+'btn-settings-restart'
+);
+sRest.addEventListener(
 'click',
 startGameNow
 );
@@ -1585,9 +1538,6 @@ startGameNow
 // opens title & theme shop modal
 const openMenuModal = () => {
 setAppState('title');
-el('pause-modal').classList.add(
-'hidden'
-);
 el('over-modal').classList.add(
 'hidden'
 );
@@ -1599,10 +1549,6 @@ el('menu-modal').classList.remove(
 );
 updateThemePickerUI();
 };
-el('btn-pause-menu').addEventListener(
-'click',
-openMenuModal
-);
 el('btn-over-menu').addEventListener(
 'click',
 openMenuModal
@@ -1611,30 +1557,6 @@ const sMenu = el('btn-settings-menu');
 sMenu.addEventListener(
 'click',
 openMenuModal
-);
-
-// wire pause and resume controls
-// freezes board input while paused
-el('btn-pause').addEventListener(
-'click',
-() => {
-if (app.state === 'playing') {
-setAppState('paused');
-el('pause-modal').classList.remove(
-'hidden'
-);
-}
-}
-);
-
-el('btn-resume').addEventListener(
-'click',
-() => {
-el('pause-modal').classList.add(
-'hidden'
-);
-setAppState('playing');
-}
 );
 
 // wire settings drawer controls
@@ -1904,8 +1826,8 @@ onBoardTap(e.clientX, e.clientY);
 }
 );
 
-// wire keyboard shortcuts for game
-// Enter/Space starts, Escape/P pauses
+// wire Enter/Space to start game
+// works on title and gameover modals
 window.addEventListener(
 'keydown',
 (e) => {
@@ -1919,22 +1841,6 @@ app.state === 'gameover'
 ) {
 e.preventDefault();
 startGameNow();
-}
-} else if (
-e.key === 'Escape' ||
-e.key === 'p' ||
-e.key === 'P'
-) {
-if (app.state === 'playing') {
-setAppState('paused');
-el('pause-modal').classList.remove(
-'hidden'
-);
-} else if (app.state === 'paused') {
-el('pause-modal').classList.add(
-'hidden'
-);
-setAppState('playing');
 }
 }
 }
