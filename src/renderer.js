@@ -41,6 +41,17 @@ const FOX_SNOUT_BOT =
 'Q234,49 230,52 Q220,58 208,58 ' +
 'Q205,52 208,46 Z';
 
+// store offscreen static board cache
+// avoids redrawing pcb grid each tick
+let boardCache = {
+key: '',
+canvas: null,
+};
+
+// store pre-rendered 3d orb sprites
+// avoids slow gradients every frame
+const chipSprites = new Map();
+
 // get signal object by color id 1..8
 // returns cyan if id is out of range
 export function getSignal(colorId) {
@@ -59,19 +70,54 @@ BOARD_THEMES.find(
 );
 }
 
-// trace core geometric symbol path
-// used for shadow and bright pass
-function traceCoreShape(
+// draw chamfered octagon rect path
+// creates modern sci-fi armor bevels
+function chamferRectPath(
+ctx,
+x,
+y,
+w,
+h,
+c
+) {
+ctx.beginPath();
+ctx.moveTo(x + c, y);
+ctx.lineTo(x + w - c, y);
+ctx.lineTo(x + w, y + c);
+ctx.lineTo(x + w, y + h - c);
+ctx.lineTo(x + w - c, y + h);
+ctx.lineTo(x + c, y + h);
+ctx.lineTo(x, y + h - c);
+ctx.lineTo(x, y + c);
+ctx.closePath();
+}
+
+// draw inner shape icon inside node
+// gives each color a unique symbol
+function drawCoreIcon(
 ctx,
 shape,
-r
+x,
+y,
+r,
+colorStr = '#ffffff',
+lineW = 0
 ) {
+ctx.save();
+ctx.translate(x, y);
+ctx.strokeStyle = colorStr;
+ctx.fillStyle = colorStr;
+ctx.lineWidth =
+lineW || Math.max(1.8, r * 0.22);
+ctx.lineCap = 'round';
+ctx.lineJoin = 'round';
+
 if (shape === 'ring') {
 ctx.beginPath();
 ctx.arc(
 0,
 0,
-r * 0.46,
+r * 0.45,
 0,
 Math.PI * 2
 );
@@ -80,30 +126,39 @@ ctx.beginPath();
 ctx.arc(
 0,
 0,
-r * 0.16,
+r * 0.15,
 0,
 Math.PI * 2
 );
 ctx.fill();
 } else if (shape === 'diamond') {
-const s = r * 0.54;
+const s = r * 0.52;
 ctx.beginPath();
 ctx.moveTo(0, -s);
-ctx.lineTo(s * 0.85, 0);
+ctx.lineTo(s, 0);
 ctx.lineTo(0, s);
-ctx.lineTo(-s * 0.85, 0);
+ctx.lineTo(-s, 0);
 ctx.closePath();
 ctx.stroke();
+ctx.beginPath();
+ctx.arc(
+0,
+0,
+r * 0.14,
+0,
+Math.PI * 2
+);
+ctx.fill();
 } else if (shape === 'triangle') {
 const s = r * 0.52;
 ctx.beginPath();
 ctx.moveTo(0, -s);
-ctx.lineTo(s * 0.92, s * 0.72);
-ctx.lineTo(-s * 0.92, s * 0.72);
+ctx.lineTo(s * 0.92, s * 0.75);
+ctx.lineTo(-s * 0.92, s * 0.75);
 ctx.closePath();
 ctx.stroke();
 } else if (shape === 'hex') {
-const s = r * 0.52;
+const s = r * 0.5;
 ctx.beginPath();
 for (let i = 0; i < 6; i++) {
 const a = (i * Math.PI) / 3;
@@ -118,7 +173,7 @@ ctx.lineTo(px, py);
 ctx.closePath();
 ctx.stroke();
 } else if (shape === 'star') {
-const outer = r * 0.6;
+const outer = r * 0.56;
 const inner = r * 0.24;
 ctx.beginPath();
 for (let i = 0; i < 8; i++) {
@@ -136,20 +191,26 @@ ctx.lineTo(px, py);
 ctx.closePath();
 ctx.fill();
 } else if (shape === 'bolt') {
-const s = r * 0.56;
+const s = r * 0.55;
 ctx.beginPath();
-ctx.moveTo(s * 0.22, -s);
-ctx.lineTo(-s * 0.46, s * 0.05);
-ctx.lineTo(s * 0.06, s * 0.05);
-ctx.lineTo(-s * 0.22, s);
-ctx.lineTo(s * 0.46, -s * 0.05);
-ctx.lineTo(-s * 0.06, -s * 0.05);
+ctx.moveTo(s * 0.2, -s);
+ctx.lineTo(-s * 0.45, s * 0.05);
+ctx.lineTo(s * 0.05, s * 0.05);
+ctx.lineTo(-s * 0.2, s);
+ctx.lineTo(s * 0.45, -s * 0.05);
+ctx.lineTo(-s * 0.05, -s * 0.05);
 ctx.closePath();
 ctx.fill();
 } else if (shape === 'chip') {
 const s = r * 0.36;
 ctx.strokeRect(-s, -s, s * 2, s * 2);
-const p = s * 1.5;
+ctx.fillRect(
+-s * 0.44,
+-s * 0.44,
+s * 0.88,
+s * 0.88
+);
+const p = s * 1.48;
 ctx.beginPath();
 ctx.moveTo(-p, 0);
 ctx.lineTo(-s, 0);
@@ -176,50 +237,187 @@ ctx.lineTo(px, py);
 }
 ctx.stroke();
 }
-}
-
-// draw inner shape icon inside node
-// renders dark shadow + crisp white
-function drawCoreIcon(
-ctx,
-shape,
-x,
-y,
-r,
-darkCol
-) {
-ctx.save();
-ctx.translate(x, y);
-ctx.lineCap = 'round';
-ctx.lineJoin = 'round';
-
-// draw recessed dark shadow pass
-// gives depth inside glass dome
-ctx.save();
-ctx.translate(0, r * 0.07);
-ctx.strokeStyle = darkCol;
-ctx.fillStyle = darkCol;
-ctx.lineWidth = Math.max(
-2.2,
-r * 0.28
-);
-traceCoreShape(ctx, shape, r);
-ctx.restore();
-
-// draw crisp white hologram pass
-// stands out clearly on all hues
-ctx.strokeStyle = '#ffffff';
-ctx.fillStyle = '#ffffff';
-ctx.lineWidth = Math.max(
-1.7,
-r * 0.21
-);
-traceCoreShape(ctx, shape, r);
 ctx.restore();
 }
 
-// draw 3d glass-lens energy node
-// metallic bezel + specular dome
+// build cached 3d glass orb sprite
+// renders halo, collar, dome & gloss
+function getChipSprite(colorId) {
+const sig = getSignal(colorId);
+const key = sig.key + '_' + sig.hex;
+if (chipSprites.has(key)) {
+return chipSprites.get(key);
+}
+const sz = 140;
+const c =
+document.createElement('canvas');
+c.width = sz;
+c.height = sz;
+const cx = c.getContext('2d');
+const mid = sz / 2;
+const r = 38;
+cx.translate(mid, mid);
+
+// draw soft radial neon outer bloom
+// baked once into offscreen sprite
+const halo = cx.createRadialGradient(
+0,
+0,
+r * 0.45,
+0,
+0,
+r * 1.72
+);
+halo.addColorStop(0, sig.glow);
+halo.addColorStop(
+1,
+'rgba(0, 0, 0, 0)'
+);
+cx.fillStyle = halo;
+cx.beginPath();
+cx.arc(
+0,
+0,
+r * 1.72,
+0,
+Math.PI * 2
+);
+cx.fill();
+
+// draw dark titanium outer collar
+// adds tactile mechanical housing
+cx.fillStyle = '#050912';
+cx.beginPath();
+cx.arc(
+0,
+0,
+r * 1.06,
+0,
+Math.PI * 2
+);
+cx.fill();
+cx.strokeStyle =
+sig.light || sig.hex;
+cx.lineWidth = 1.6;
+cx.stroke();
+
+// draw 4 machined collar notches
+// places metallic ticks at 90 degrees
+cx.strokeStyle = '#ffffff';
+cx.lineWidth = 2.2;
+for (let i = 0; i < 4; i++) {
+const a = (Math.PI / 2) * i;
+cx.beginPath();
+cx.moveTo(
+Math.cos(a) * (r * 0.93),
+Math.sin(a) * (r * 0.93)
+);
+cx.lineTo(
+Math.cos(a) * (r * 1.08),
+Math.sin(a) * (r * 1.08)
+);
+cx.stroke();
+}
+
+// draw 3d subsurface glass sphere
+// blends light core to dark rim
+const dome = cx.createRadialGradient(
+-r * 0.28,
+-r * 0.3,
+r * 0.06,
+0,
+0,
+r * 0.95
+);
+dome.addColorStop(
+0,
+sig.light || '#ffffff'
+);
+dome.addColorStop(0.35, sig.hex);
+dome.addColorStop(0.84, sig.dark);
+dome.addColorStop(1, '#04070e');
+cx.fillStyle = dome;
+cx.beginPath();
+cx.arc(
+0,
+0,
+r * 0.93,
+0,
+Math.PI * 2
+);
+cx.fill();
+
+// draw glowing neon inner ring
+// frames the central hologram symbol
+cx.strokeStyle =
+sig.light || '#ffffff';
+cx.lineWidth = 2;
+cx.beginPath();
+cx.arc(
+0,
+0,
+r * 0.76,
+0,
+Math.PI * 2
+);
+cx.stroke();
+
+// draw crisp inner hologram emblem
+// uses dark shadow and white stroke
+drawCoreIcon(
+cx,
+sig.shape,
+0,
+1.6,
+r * 0.78,
+'rgba(0, 0, 0, 0.65)',
+3.8
+);
+drawCoreIcon(
+cx,
+sig.shape,
+0,
+0,
+r * 0.78,
+'#ffffff',
+2.5
+);
+
+// draw curved top glass highlight
+// gives realistic lens reflection
+const gloss = cx.createLinearGradient(
+0,
+-r * 0.88,
+0,
+-r * 0.08
+);
+gloss.addColorStop(
+0,
+'rgba(255, 255, 255, 0.74)'
+);
+gloss.addColorStop(
+1,
+'rgba(255, 255, 255, 0)'
+);
+cx.fillStyle = gloss;
+cx.beginPath();
+cx.ellipse(
+-r * 0.12,
+-r * 0.46,
+r * 0.46,
+r * 0.22,
+-0.18,
+0,
+Math.PI * 2
+);
+cx.fill();
+
+chipSprites.set(key, c);
+return c;
+}
+
+// draw single neon signal node at x,y
+// blits cached 3d sprite at 60fps
 export function drawSignalNode(
 ctx,
 colorId,
@@ -231,166 +429,80 @@ isSelected = false,
 groupSize = 1
 ) {
 const sig = getSignal(colorId);
+const sprite = getChipSprite(colorId);
 let pulse = 1;
-if (groupSize === 6) {
+if (groupSize >= 6) {
 pulse =
-1 + Math.sin(time * 22) * 0.11;
+1 + Math.sin(time * 22) * 0.09;
 } else if (groupSize === 5) {
 pulse =
-1 + Math.sin(time * 9) * 0.05;
+1 + Math.sin(time * 9) * 0.04;
 } else if (isSelected) {
-pulse =
-1 + Math.sin(time * 12) * 0.09;
+pulse = 1.12;
 }
 const r = radius * pulse;
+const drawSz = (r / 38) * 140;
 
-// draw ambient glow on pcb floor
-// expands when group reaches 6
-const auraMul =
-groupSize >= 6 ? 1.9 : 1.5;
-const grad = ctx.createRadialGradient(
-x,
-y,
-r * 0.15,
-x,
-y,
-r * auraMul
-);
-grad.addColorStop(0, sig.hex);
-grad.addColorStop(0.5, sig.glow);
-grad.addColorStop(
-1,
-'rgba(0, 0, 0, 0)'
-);
-ctx.fillStyle = grad;
-ctx.beginPath();
-ctx.arc(
-x,
-y,
-r * auraMul,
-0,
-Math.PI * 2
-);
-ctx.fill();
-
-// draw dark gunmetal outer collar
-// grounds chip inside pcb socket
-const bezelG =
-ctx.createLinearGradient(
-x - r,
-y - r,
-x + r,
-y + r
-);
-bezelG.addColorStop(0, '#334155');
-bezelG.addColorStop(0.5, '#0f172a');
-bezelG.addColorStop(1, '#020617');
-ctx.fillStyle = bezelG;
-ctx.beginPath();
-ctx.arc(
-x,
-y,
-r * 1.04,
-0,
-Math.PI * 2
-);
-ctx.fill();
-
-// draw glowing metallic rim ring
-// frames the inner crystal lens
-ctx.strokeStyle = sig.hex;
-ctx.lineWidth = Math.max(
-1.8,
-r * 0.14
-);
-ctx.beginPath();
-ctx.arc(
-x,
-y,
-r * 0.92,
-0,
-Math.PI * 2
-);
-ctx.stroke();
-
-// draw 3d spherical glass dome
-// offset highlight at top-left
-const domeG =
-ctx.createRadialGradient(
-x - r * 0.28,
-y - r * 0.28,
-r * 0.06,
-x,
-y,
-r * 0.86
-);
-domeG.addColorStop(
-0,
-sig.light || '#ffffff'
-);
-domeG.addColorStop(0.42, sig.hex);
-domeG.addColorStop(1, sig.dark);
-ctx.fillStyle = domeG;
-ctx.beginPath();
-ctx.arc(
-x,
-y,
-r * 0.84,
-0,
-Math.PI * 2
-);
-ctx.fill();
-
-// draw inner hologram symbol
-// crisp icon suspended in dome
-drawCoreIcon(
-ctx,
-sig.shape,
-x,
-y,
-r * 0.76,
-sig.dark
+ctx.drawImage(
+sprite,
+x - drawSz * 0.5,
+y - drawSz * 0.5,
+drawSz,
+drawSz
 );
 
-// draw top glass specular gloss arc
-// gives expensive 3d lens finish
-ctx.save();
-ctx.strokeStyle =
-'rgba(255, 255, 255, 0.48)';
-ctx.lineWidth = Math.max(
-1.4,
-r * 0.11
-);
-ctx.lineCap = 'round';
-ctx.beginPath();
-ctx.arc(
-x,
-y,
-r * 0.68,
--Math.PI * 0.78,
--Math.PI * 0.22
-);
-ctx.stroke();
-ctx.restore();
-
-// draw rotating target brackets
-// shows active selected signal
+// draw rotating reticle when picked
+// spins 4 segmented arcs around orb
 if (isSelected) {
 ctx.save();
 ctx.translate(x, y);
-ctx.rotate(time * 2.4);
+ctx.rotate(time * 2.8);
 ctx.strokeStyle = '#ffffff';
 ctx.lineWidth = 2.4;
-ctx.setLineDash([7, 5]);
+for (let i = 0; i < 4; i++) {
+const a0 =
+(Math.PI / 2) * i + 0.18;
+const a1 =
+(Math.PI / 2) * (i + 1) - 0.18;
+ctx.beginPath();
+ctx.arc(0, 0, r * 1.24, a0, a1);
+ctx.stroke();
+}
+ctx.restore();
+}
+
+// draw live chain count badge on 5..6
+// shows player how close to 7 chain
+if (groupSize >= 5) {
+const bx = x + radius * 0.72;
+const by = y - radius * 0.72;
+ctx.save();
+ctx.fillStyle = '#050914';
+ctx.strokeStyle =
+sig.light || sig.hex;
+ctx.lineWidth = 1.5;
 ctx.beginPath();
 ctx.arc(
-0,
-0,
-r * 1.25,
+bx,
+by,
+radius * 0.36,
 0,
 Math.PI * 2
 );
+ctx.fill();
 ctx.stroke();
+ctx.fillStyle = '#ffffff';
+ctx.font =
+'900 ' +
+Math.round(radius * 0.44) +
+'px system-ui, sans-serif';
+ctx.textAlign = 'center';
+ctx.textBaseline = 'middle';
+ctx.fillText(
+String(groupSize),
+bx,
+by + 0.5
+);
 ctx.restore();
 }
 }
@@ -411,8 +523,276 @@ step,
 };
 }
 
-// draw multi-layer hardware pcb board
-// renders dual rails, sockets & bolts
+// build static offscreen pcb board
+// caches hardware details for 60fps
+function getBoardCache(
+width,
+height,
+size,
+themeId
+) {
+const key =
+width +
+'x' +
+height +
+'_' +
+size +
+'_' +
+themeId;
+if (
+boardCache.key === key &&
+boardCache.canvas
+) {
+return boardCache.canvas;
+}
+const c =
+document.createElement('canvas');
+c.width = width;
+c.height = height;
+const ctx = c.getContext('2d');
+const theme = getTheme(themeId);
+const step = width / size;
+
+// fill chamfered radial pcb substrate
+// blends center glow into dark armor
+const bgGrad =
+ctx.createRadialGradient(
+width * 0.5,
+height * 0.5,
+width * 0.05,
+width * 0.5,
+height * 0.5,
+width * 0.72
+);
+bgGrad.addColorStop(
+0,
+theme.bgInner || theme.panel
+);
+bgGrad.addColorStop(1, theme.bg);
+chamferRectPath(
+ctx,
+2,
+2,
+width - 4,
+height - 4,
+18
+);
+ctx.fillStyle = bgGrad;
+ctx.fill();
+
+// draw subtle carbon micro-grid lines
+// adds modern sci-fi surface texture
+ctx.save();
+chamferRectPath(
+ctx,
+5,
+5,
+width - 10,
+height - 10,
+15
+);
+ctx.clip();
+ctx.strokeStyle =
+'rgba(148, 163, 184, 0.035)';
+ctx.lineWidth = 1;
+for (
+let gx = 0;
+gx < width;
+gx += 12
+) {
+ctx.beginPath();
+ctx.moveTo(gx, 0);
+ctx.lineTo(gx, height);
+ctx.stroke();
+}
+for (
+let gy = 0;
+gy < height;
+gy += 12
+) {
+ctx.beginPath();
+ctx.moveTo(0, gy);
+ctx.lineTo(width, gy);
+ctx.stroke();
+}
+
+// draw etched 45-deg pcb sub-traces
+// gives authentic motherboard look
+ctx.strokeStyle =
+theme.trace || theme.wire;
+ctx.lineWidth = 1.4;
+for (let r = 0; r < size - 1; r++) {
+for (
+let col = 0;
+col < size - 1;
+col++
+) {
+if ((r + col) % 2 === 0) {
+const x0 =
+(col + 0.72) * step;
+const y0 =
+(r + 0.72) * step;
+const x1 =
+(col + 1.28) * step;
+const y1 =
+(r + 1.28) * step;
+ctx.beginPath();
+ctx.moveTo(x0, y0);
+ctx.lineTo(x1, y1);
+ctx.stroke();
+ctx.fillStyle = theme.wire;
+ctx.beginPath();
+ctx.arc(x0, y0, 2.2, 0, Math.PI * 2);
+ctx.arc(x1, y1, 2.2, 0, Math.PI * 2);
+ctx.fill();
+}
+}
+}
+ctx.restore();
+
+// draw metallic outer armor border
+// adds double bevel and edge leds
+chamferRectPath(
+ctx,
+2,
+2,
+width - 4,
+height - 4,
+18
+);
+ctx.strokeStyle = theme.rim;
+ctx.lineWidth = 2.4;
+ctx.stroke();
+
+chamferRectPath(
+ctx,
+7,
+7,
+width - 14,
+height - 14,
+14
+);
+ctx.strokeStyle =
+'rgba(255, 255, 255, 0.08)';
+ctx.lineWidth = 1;
+ctx.stroke();
+
+// draw glowing edge status bars
+// accents top, bottom, left, right
+const barLen = 48;
+ctx.fillStyle = theme.accent;
+ctx.fillRect(
+width * 0.5 - barLen * 0.5,
+1.5,
+barLen,
+2.5
+);
+ctx.fillRect(
+width * 0.5 - barLen * 0.5,
+height - 4,
+barLen,
+2.5
+);
+ctx.fillRect(
+1.5,
+height * 0.5 - barLen * 0.5,
+2.5,
+barLen
+);
+ctx.fillRect(
+width - 4,
+height * 0.5 - barLen * 0.5,
+2.5,
+barLen
+);
+
+// draw recessed dual-rail trenches
+// connects orthogonal intersections
+const start = 0.5 * step;
+const end = (size - 0.5) * step;
+ctx.strokeStyle = '#03060c';
+ctx.lineWidth = Math.max(
+5,
+step * 0.13
+);
+ctx.beginPath();
+for (let i = 0; i < size; i++) {
+const pos = (i + 0.5) * step;
+ctx.moveTo(pos, start);
+ctx.lineTo(pos, end);
+ctx.moveTo(start, pos);
+ctx.lineTo(end, pos);
+}
+ctx.stroke();
+
+ctx.strokeStyle = theme.wire;
+ctx.lineWidth = Math.max(
+2.2,
+step * 0.06
+);
+ctx.beginPath();
+for (let i = 0; i < size; i++) {
+const pos = (i + 0.5) * step;
+ctx.moveTo(pos, start);
+ctx.lineTo(pos, end);
+ctx.moveTo(start, pos);
+ctx.lineTo(end, pos);
+}
+ctx.stroke();
+
+// draw machined multi-ring sockets
+// sits at every line intersection
+const sockR = step * 0.21;
+for (let r = 0; r < size; r++) {
+for (let col = 0; col < size; col++) {
+const x = (col + 0.5) * step;
+const y = (r + 0.5) * step;
+
+ctx.fillStyle = '#040811';
+ctx.beginPath();
+ctx.arc(
+x,
+y,
+sockR * 1.24,
+0,
+Math.PI * 2
+);
+ctx.fill();
+ctx.strokeStyle = theme.rim;
+ctx.lineWidth = 1.3;
+ctx.stroke();
+
+ctx.fillStyle = theme.socket;
+ctx.beginPath();
+ctx.arc(
+x,
+y,
+sockR * 0.78,
+0,
+Math.PI * 2
+);
+ctx.fill();
+
+ctx.fillStyle =
+'rgba(148, 163, 184, 0.35)';
+ctx.beginPath();
+ctx.arc(
+x,
+y,
+sockR * 0.24,
+0,
+Math.PI * 2
+);
+ctx.fill();
+}
+}
+
+boardCache = { key, canvas: c };
+return c;
+}
+
+// draw main pcb intersection board
+// renders bus wires, sockets & sparks
 export function drawBoardCanvas(
 ctx,
 width,
@@ -432,161 +812,20 @@ particles,
 boosterMode,
 } = state;
 const size = grid.length;
-const theme = getTheme(themeId);
 const step = width / size;
-const nodeR = step * 0.35;
+const nodeR = step * 0.36;
 
-// fill radial shaded pcb substrate
-// lighter center, deep vignette rim
-const bgGrad =
-ctx.createRadialGradient(
-width * 0.5,
-height * 0.5,
-width * 0.08,
-width * 0.5,
-height * 0.5,
-width * 0.72
+ctx.clearRect(0, 0, width, height);
+
+// blit cached static pcb hardware
+// zero per-frame cost for board grid
+const cached = getBoardCache(
+width,
+height,
+size,
+themeId
 );
-bgGrad.addColorStop(
-0,
-theme.bgInner || theme.panel
-);
-bgGrad.addColorStop(1, theme.bg);
-ctx.fillStyle = bgGrad;
-ctx.fillRect(0, 0, width, height);
-
-// draw faint micro circuit etchings
-// adds realistic motherboard texture
-ctx.strokeStyle =
-theme.trace || theme.wire;
-ctx.lineWidth = 1;
-ctx.beginPath();
-for (let i = 1; i < size; i++) {
-const p = i * step;
-ctx.moveTo(p, 6);
-ctx.lineTo(p, 14);
-ctx.moveTo(p, height - 14);
-ctx.lineTo(p, height - 6);
-ctx.moveTo(6, p);
-ctx.lineTo(14, p);
-ctx.moveTo(width - 14, p);
-ctx.lineTo(width - 6, p);
-}
-ctx.stroke();
-
-// draw beveled outer armor frame
-// double border with corner bolts
-ctx.strokeStyle = theme.wire;
-ctx.lineWidth = 4;
-ctx.strokeRect(
-2,
-2,
-width - 4,
-height - 4
-);
-ctx.strokeStyle = theme.rim;
-ctx.lineWidth = 1.5;
-ctx.strokeRect(
-5,
-5,
-width - 10,
-height - 10
-);
-
-const screwOff = 11;
-const corners = [
-[screwOff, screwOff],
-[width - screwOff, screwOff],
-[screwOff, height - screwOff],
-[width - screwOff, height - screwOff],
-];
-for (let i = 0; i < 4; i++) {
-const [cx, cy] = corners[i];
-ctx.fillStyle = theme.socket;
-ctx.beginPath();
-ctx.arc(cx, cy, 4.5, 0, Math.PI * 2);
-ctx.fill();
-ctx.strokeStyle = theme.rim;
-ctx.lineWidth = 1.2;
-ctx.stroke();
-}
-
-// draw recessed dual-rail bus tracks
-// dark trench + twin metallic rails
-const start = 0.5 * step;
-const end = (size - 0.5) * step;
-
-ctx.strokeStyle = '#04070e';
-ctx.lineWidth = Math.max(
-5,
-step * 0.14
-);
-ctx.lineCap = 'round';
-ctx.beginPath();
-for (let i = 0; i < size; i++) {
-const pos = (i + 0.5) * step;
-ctx.moveTo(pos, start);
-ctx.lineTo(pos, end);
-ctx.moveTo(start, pos);
-ctx.lineTo(end, pos);
-}
-ctx.stroke();
-
-ctx.strokeStyle = theme.wire;
-ctx.lineWidth = Math.max(
-2.2,
-step * 0.065
-);
-ctx.beginPath();
-for (let i = 0; i < size; i++) {
-const pos = (i + 0.5) * step;
-ctx.moveTo(pos, start);
-ctx.lineTo(pos, end);
-ctx.moveTo(start, pos);
-ctx.lineTo(end, pos);
-}
-ctx.stroke();
-
-// draw machined metallic pcb sockets
-// multi-ring well with contact pins
-const sockR = step * 0.22;
-for (let r = 0; r < size; r++) {
-for (let c = 0; c < size; c++) {
-const x = (c + 0.5) * step;
-const y = (r + 0.5) * step;
-
-ctx.fillStyle = '#03060c';
-ctx.beginPath();
-ctx.arc(
-x,
-y,
-sockR * 1.18,
-0,
-Math.PI * 2
-);
-ctx.fill();
-
-ctx.fillStyle = theme.socket;
-ctx.beginPath();
-ctx.arc(x, y, sockR, 0, Math.PI * 2);
-ctx.fill();
-
-ctx.strokeStyle = theme.rim;
-ctx.lineWidth = 1.4;
-ctx.stroke();
-
-ctx.fillStyle = theme.wire;
-ctx.beginPath();
-ctx.arc(
-x,
-y,
-sockR * 0.38,
-0,
-Math.PI * 2
-);
-ctx.fill();
-}
-}
+ctx.drawImage(cached, 0, 0);
 
 // draw lit neon bus bars between
 // adjacent nodes of the same color
@@ -636,7 +875,7 @@ r + c
 }
 
 // draw double-contour preview rings
-// holographic reticle inside socket
+// shows where next 3 signals spawn
 for (
 let i = 0;
 i < previews.length;
@@ -651,7 +890,7 @@ const x = (p.c + 0.5) * step;
 const y = (p.r + 0.5) * step;
 const wave =
 Math.sin(time * 5 + i) * 0.05;
-const pr = nodeR * (0.76 + wave);
+const pr = nodeR * (0.74 + wave);
 
 ctx.save();
 ctx.fillStyle = sig.glow;
@@ -666,22 +905,21 @@ Math.PI * 2
 ctx.fill();
 
 ctx.strokeStyle = sig.hex;
-ctx.lineWidth = 2.2;
+ctx.lineWidth = 2;
 ctx.beginPath();
 ctx.arc(x, y, pr, 0, Math.PI * 2);
 ctx.stroke();
 
 ctx.strokeStyle =
 sig.light || '#ffffff';
-ctx.lineWidth = 1.6;
 ctx.setLineDash([4, 4]);
 ctx.beginPath();
 ctx.arc(
 x,
 y,
 pr * 0.6,
-time * 2.2,
-time * 2.2 + Math.PI * 2
+time * 2,
+time * 2 + Math.PI * 2
 );
 ctx.stroke();
 ctx.restore();
@@ -743,9 +981,10 @@ const my = ay + (by - ay) * frac;
 
 const sig = getSignal(color);
 ctx.save();
-ctx.strokeStyle = sig.hex;
-ctx.lineWidth = step * 0.15;
+ctx.strokeStyle = sig.glow;
+ctx.lineWidth = step * 0.22;
 ctx.lineCap = 'round';
+ctx.lineJoin = 'round';
 ctx.beginPath();
 for (let i = 0; i <= idx; i++) {
 const px = (path[i].c + 0.5) * step;
@@ -758,6 +997,10 @@ ctx.lineTo(px, py);
 }
 ctx.lineTo(mx, my);
 ctx.stroke();
+
+ctx.strokeStyle = '#ffffff';
+ctx.lineWidth = step * 0.06;
+ctx.stroke();
 ctx.restore();
 
 drawSignalNode(
@@ -765,7 +1008,7 @@ ctx,
 color,
 mx,
 my,
-nodeR * 1.06,
+nodeR * 1.08,
 time,
 false,
 1
@@ -857,18 +1100,21 @@ boosterMode === 'laser'
 : '#00f0ff';
 ctx.lineWidth = 3;
 ctx.setLineDash([8, 6]);
-ctx.strokeRect(
+chamferRectPath(
+ctx,
 4,
 4,
 width - 8,
-height - 8
+height - 8,
+16
 );
+ctx.stroke();
 ctx.restore();
 }
 }
 
-// draw triple-layer plasma conduit
-// 2-4 calm, 5 wave, 6 pulse + sparks
+// draw lit bus wire between 2 nodes
+// renders triple-layer plasma conduit
 function drawLitBusSegment(
 ctx,
 x0,
@@ -884,26 +1130,24 @@ seed
 ctx.save();
 ctx.lineCap = 'round';
 
-let widthMul = 0.16;
+let widthMul = 0.14;
 if (grpSize === 5) {
-widthMul = 0.2;
+widthMul = 0.18;
 } else if (grpSize >= 6) {
 widthMul =
-0.24 + Math.sin(time * 24) * 0.05;
+0.22 + Math.sin(time * 24) * 0.04;
 }
 
-// draw outer plasma bloom aura
+// draw outer colored neon bus glow
 // merges touching nodes into circuit
 ctx.strokeStyle = sig.glow;
 ctx.lineWidth =
-step * (widthMul + 0.18);
+step * (widthMul + 0.14);
 ctx.beginPath();
 ctx.moveTo(x0, y0);
 ctx.lineTo(x1, y1);
 ctx.stroke();
 
-// draw saturated neon conduit tube
-// matches exact signal hue
 ctx.strokeStyle = sig.hex;
 ctx.lineWidth = step * widthMul;
 ctx.beginPath();
@@ -911,11 +1155,12 @@ ctx.moveTo(x0, y0);
 ctx.lineTo(x1, y1);
 ctx.stroke();
 
-// draw white-hot inner filament core
-// gives crisp high-voltage look
 ctx.strokeStyle =
 sig.light || '#ffffff';
-ctx.lineWidth = step * 0.055;
+ctx.lineWidth = Math.max(
+1.8,
+step * 0.045
+);
 ctx.beginPath();
 ctx.moveTo(x0, y0);
 ctx.lineTo(x1, y1);
@@ -933,7 +1178,7 @@ ctx.beginPath();
 ctx.arc(
 wx,
 wy,
-step * 0.095,
+step * 0.08,
 0,
 Math.PI * 2
 );
@@ -944,18 +1189,18 @@ ctx.fill();
 // warns player group has 6 of 7 nodes
 if (grpSize >= 6) {
 ctx.strokeStyle = '#ffffff';
-ctx.lineWidth = 2.2;
+ctx.lineWidth = 2;
 ctx.beginPath();
 const midX = (x0 + x1) * 0.5;
 const midY = (y0 + y1) * 0.5;
 const jx =
 Math.sin(time * 38 + seed * 3) *
 step *
-0.13;
+0.12;
 const jy =
 Math.cos(time * 34 + seed * 5) *
 step *
-0.13;
+0.12;
 ctx.moveTo(x0, y0);
 ctx.lineTo(midX + jx, midY + jy);
 ctx.lineTo(x1, y1);
@@ -1029,11 +1274,11 @@ height
 );
 sky.addColorStop(
 0,
-isRainbow ? '#16062b' : '#070a12'
+isRainbow ? '#16062b' : '#050811'
 );
 sky.addColorStop(
 1,
-isRainbow ? '#2b0948' : '#0f172a'
+isRainbow ? '#2b0948' : '#0d182e'
 );
 ctx.fillStyle = sky;
 ctx.fillRect(0, 0, width, height);
@@ -1041,9 +1286,33 @@ ctx.fillRect(0, 0, width, height);
 // draw scrolling cyber horizon grid
 // moves right to left toward the fox
 const horizonY = height * 0.74;
+
+// draw distant cyber city silhouette
+// adds parallax depth above horizon
+const cityShift =
+(scrollX * 0.25) % 44;
+ctx.fillStyle =
+'rgba(15, 29, 58, 0.72)';
+for (
+let x = -cityShift;
+x < width + 44;
+x += 44
+) {
+const bh =
+16 +
+((Math.abs(Math.round(x)) * 7) %
+18);
+ctx.fillRect(
+x,
+horizonY - bh,
+28,
+bh
+);
+}
+
 ctx.strokeStyle = isRainbow
-? 'rgba(244, 114, 182, 0.42)'
-: 'rgba(0, 240, 255, 0.22)';
+? 'rgba(244, 114, 182, 0.45)'
+: 'rgba(0, 240, 255, 0.25)';
 ctx.lineWidth = 1;
 ctx.beginPath();
 ctx.moveTo(0, horizonY);
@@ -1176,7 +1445,7 @@ ctx.restore();
 }
 
 // draw long neon or rainbow trail
-// fills header width during 9+ warp
+// strictly zero yellow in bands
 function drawSkateTrail(
 ctx,
 nozzleX,
@@ -1564,9 +1833,9 @@ ctx.arc(233, 43, 2.6, 0, Math.PI * 2);
 ctx.fill();
 
 // draw glowing neon cyber-visor
-// flashes bright white/cyan in warp
+// flashes bright orchid/cyan in warp
 ctx.fillStyle = isRainbow
-? '#00e676'
+? '#f472b6'
 : isBoost
 ? '#ffffff'
 : '#00f0ff';
@@ -1646,7 +1915,7 @@ ctx,
 (c % 4) + 1,
 x,
 sampleY,
-Math.min(stepX, stepY) * 0.32,
+Math.min(stepX, stepY) * 0.3,
 time,
 false,
 4

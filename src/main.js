@@ -437,7 +437,7 @@ app.goalProgress.score = app.score;
 const canvas = el('board-canvas');
 const bw = canvas
 ? canvas.width
-: 450;
+: 540;
 const sz = app.grid.length;
 const step = bw / sz;
 
@@ -987,7 +987,7 @@ app.cfg.rescueClearCount
 );
 const canvas = el('board-canvas');
 const step =
-(canvas ? canvas.width : 450) /
+(canvas ? canvas.width : 540) /
 app.grid.length;
 for (
 let i = 0;
@@ -1269,10 +1269,9 @@ sound.musicEnabled
 : dict.musicOff;
 el('txt-music-vol').textContent =
 dict.musicVol;
-const sRest = el(
+el(
 'btn-settings-restart'
-);
-sRest.textContent = dict.restart;
+).textContent = dict.restart;
 el('btn-settings-menu').textContent =
 dict.toMenu;
 el('btn-open-debug').textContent =
@@ -1526,10 +1525,9 @@ el('btn-restart').addEventListener(
 'click',
 startGameNow
 );
-const sRest = el(
+el(
 'btn-settings-restart'
-);
-sRest.addEventListener(
+).addEventListener(
 'click',
 startGameNow
 );
@@ -1826,8 +1824,8 @@ onBoardTap(e.clientX, e.clientY);
 }
 );
 
-// wire Enter/Space to start game
-// works on title and gameover modals
+// wire keyboard shortcuts for game
+// Enter or Space starts from menu
 window.addEventListener(
 'keydown',
 (e) => {
