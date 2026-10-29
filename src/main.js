@@ -1681,6 +1681,10 @@ saveProfile();
 el('btn-theme-prev').addEventListener(
 'click',
 () => {
+sound.wake();
+if (!sound.musicTimer) {
+sound.startMusic();
+}
 if (app.pickerIdx > 0) {
 app.pickerIdx--;
 updateThemePickerUI();
@@ -1691,6 +1695,10 @@ updateThemePickerUI();
 el('btn-theme-next').addEventListener(
 'click',
 () => {
+sound.wake();
+if (!sound.musicTimer) {
+sound.startMusic();
+}
 if (
 app.pickerIdx <
 BOARD_THEMES.length - 1
@@ -2081,6 +2089,33 @@ app.fox.boostTimer > 0
 : 4.0
 : 1.0;
 app.fox.scrollX += dt * 55 * speedMul;
+
+// sync live context into music synth
+// adapts filter, arp & skin track
+const gSz = app.grid.length || 9;
+let filled = 0;
+for (let r = 0; r < gSz; r++) {
+for (let c = 0; c < gSz; c++) {
+if (app.grid[r][c] > 0) {
+filled++;
+}
+}
+}
+const pickTh =
+BOARD_THEMES[app.pickerIdx] ||
+BOARD_THEMES[0];
+const musTheme =
+app.state === 'title'
+? pickTh.id
+: app.activeTheme;
+sound.setContext({
+themeId: musTheme,
+fillRatio: filled / (gSz * gSz),
+hasSelection: Boolean(app.selected),
+isMoving: Boolean(app.movingAnim),
+boostActive: app.fox.boostTimer > 0,
+inMenu: app.state !== 'playing',
+});
 
 // advance sliding wire move animation
 // emits colored sparks along trace
