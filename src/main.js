@@ -862,6 +862,14 @@ return;
 
 if (app.boosterMode === 'teleport') {
 pushUndoSnapshot();
+const sig = getSignal(moveColor);
+const step = canvas.width / sz;
+spawnSparks(
+(c0 + 0.5) * step,
+(r0 + 0.5) * step,
+sig.hex,
+6
+);
 app.grid[r0][c0] = 0;
 app.selected = null;
 app.boosterMode = 'none';
@@ -872,8 +880,8 @@ path: [
 { r: r0, c: c0 },
 { r, c },
 ],
-progress: 0,
-speed: 2.3,
+progress: 0.06,
+speed: 3.8,
 fromR: r0,
 fromC: c0,
 toR: r,
@@ -902,6 +910,15 @@ return;
 }
 
 pushUndoSnapshot();
+const launchSig =
+getSignal(moveColor);
+const step = canvas.width / sz;
+spawnSparks(
+(c0 + 0.5) * step,
+(r0 + 0.5) * step,
+launchSig.hex,
+5
+);
 app.grid[r0][c0] = 0;
 app.selected = null;
 sound.playStep(path.length);
@@ -911,12 +928,12 @@ const segs = Math.max(
 path.length - 1
 );
 const moveSpd = Math.max(
-1.35,
-2.5 / Math.sqrt(segs)
+2.7,
+4.6 / Math.sqrt(segs)
 );
 app.movingAnim = {
 path,
-progress: 0,
+progress: 0.06,
 speed: moveSpd,
 fromR: r0,
 fromC: c0,
@@ -2069,7 +2086,10 @@ app.fox.scrollX += dt * 55 * speedMul;
 // emits colored sparks along trace
 if (app.movingAnim) {
 const ma = app.movingAnim;
-ma.progress += dt * ma.speed;
+const accel =
+0.9 + ma.progress * 0.85;
+ma.progress +=
+dt * ma.speed * accel;
 
 const bCanvas = el('board-canvas');
 const bw = bCanvas
@@ -2078,8 +2098,8 @@ const bw = bCanvas
 const step = bw / app.grid.length;
 const totalSegs = ma.path.length - 1;
 const eased =
-0.22 * ma.progress +
-0.78 * ma.progress * ma.progress;
+0.72 * ma.progress +
+0.28 * ma.progress * ma.progress;
 const exact =
 Math.min(0.999, eased) * totalSegs;
 const idx = Math.floor(exact);
