@@ -924,6 +924,12 @@ step,
 };
 }
 
+// random seed per session for pcb
+// varies micro-traces and smd parts
+const pcbSeed =
+Math.floor(Math.random() * 8999) +
+1001;
+
 // build static offscreen pcb board
 // renders green microchip + gold pads
 function getBoardCache(
@@ -1021,8 +1027,12 @@ ctx.lineTo(width, gy);
 ctx.stroke();
 }
 
-// draw secondary 45-deg copper traces
-// sits in bays between main sockets
+// draw varied pcb traces & smd parts
+// randomized per bay between sockets
+const trCol =
+'rgba(212, 168, 79, 0.24)';
+const trHi =
+'rgba(212, 168, 79, 0.38)';
 for (let r = 0; r < size - 1; r++) {
 for (
 let col = 0;
@@ -1031,32 +1041,266 @@ col++
 ) {
 const x0 = (col + 0.5) * step;
 const y0 = (r + 0.5) * step;
-if ((r + col) % 2 === 0) {
-const ax = x0 + step * 0.24;
-const ay = y0 + step * 0.24;
-const bx = x0 + step * 0.76;
-const by = y0 + step * 0.76;
-ctx.strokeStyle =
-'rgba(212, 168, 79, 0.22)';
-ctx.lineWidth = 1.6;
-ctx.beginPath();
-ctx.moveTo(ax, ay);
-ctx.lineTo(bx, by);
-ctx.stroke();
-
-ctx.fillStyle =
-'rgba(212, 168, 79, 0.35)';
-ctx.beginPath();
-ctx.arc(ax, ay, 2.2, 0, Math.PI * 2);
-ctx.arc(bx, by, 2.2, 0, Math.PI * 2);
-ctx.fill();
-} else if ((r * 3 + col) % 4 === 1) {
 const cx = x0 + step * 0.5;
 const cy = y0 + step * 0.5;
+const h =
+Math.abs(
+Math.sin(
+r * 127.1 +
+col * 311.7 +
+pcbSeed
+) * 43758.5
+) % 1;
+const pat = Math.floor(h * 8);
+const jx =
+((h * 97) % 1 - 0.5) * step * 0.08;
+const jy =
+((h * 53) % 1 - 0.5) * step * 0.08;
+const bx = cx + jx;
+const by = cy + jy;
+
+ctx.strokeStyle = trCol;
+ctx.lineWidth = 1.5;
+
+if (pat === 0) {
+// parallel horizontal bus + vias
+// classic pcb data ribbon in bay
+const w1 = step * 0.26;
+ctx.beginPath();
+ctx.moveTo(bx - w1, by - 5);
+ctx.lineTo(bx + w1, by - 5);
+ctx.moveTo(bx - w1 * 0.8, by);
+ctx.lineTo(bx + w1 * 0.9, by);
+ctx.moveTo(bx - w1 * 0.6, by + 5);
+ctx.lineTo(bx + w1 * 0.7, by + 5);
+ctx.stroke();
+
+ctx.fillStyle = trHi;
+ctx.beginPath();
+ctx.arc(
+bx - w1,
+by - 5,
+1.9,
+0,
+6.283
+);
+ctx.arc(
+bx + w1,
+by - 5,
+1.9,
+0,
+6.283
+);
+ctx.arc(
+bx + w1 * 0.9,
+by,
+1.9,
+0,
+6.283
+);
+ctx.fill();
+} else if (pat === 1) {
+// dual stacked smd resistors + stubs
+// two horizontal rectangles on traces
+const w1 = step * 0.27;
+ctx.beginPath();
+ctx.moveTo(bx - w1, by - 5);
+ctx.lineTo(bx + w1, by - 5);
+ctx.moveTo(bx - w1, by + 5);
+ctx.lineTo(bx + w1, by + 5);
+ctx.stroke();
+
+for (let k = -1; k <= 1; k += 2) {
+const ry = by + k * 5;
 ctx.fillStyle = goldMain;
-ctx.fillRect(cx - 7, cy - 3, 14, 6);
+ctx.fillRect(bx - 6, ry - 2.5, 12, 5);
 ctx.fillStyle = '#09110d';
-ctx.fillRect(cx - 4, cy - 3, 8, 6);
+ctx.fillRect(
+bx - 3.5,
+ry - 2.5,
+7,
+5
+);
+}
+} else if (pat === 2) {
+// stepped horizontal dog-leg trace
+// plus single smd capacitor block
+const w1 = step * 0.26;
+ctx.beginPath();
+ctx.moveTo(bx - w1, by - 4);
+ctx.lineTo(bx - 3, by - 4);
+ctx.lineTo(bx + 3, by + 3);
+ctx.lineTo(bx + w1, by + 3);
+ctx.stroke();
+
+ctx.fillStyle = trHi;
+ctx.beginPath();
+ctx.arc(
+bx - w1,
+by - 4,
+2,
+0,
+6.283
+);
+ctx.arc(
+bx + w1,
+by + 3,
+2,
+0,
+6.283
+);
+ctx.fill();
+
+ctx.fillStyle = goldMain;
+ctx.fillRect(
+bx - 7,
+by - 9,
+10,
+4
+);
+ctx.fillStyle = '#09110d';
+ctx.fillRect(
+bx - 4.5,
+by - 9,
+5,
+4
+);
+} else if (pat === 3) {
+// mini ic chip with horizontal pins
+// dark sub-chip & gold side legs
+ctx.beginPath();
+ctx.moveTo(bx - step * 0.26, by - 3);
+ctx.lineTo(bx + step * 0.26, by - 3);
+ctx.moveTo(bx - step * 0.26, by + 3);
+ctx.lineTo(bx + step * 0.26, by + 3);
+ctx.stroke();
+
+ctx.fillStyle = goldMain;
+for (let p = -4; p <= 4; p += 4) {
+ctx.fillRect(
+bx - 8,
+by + p - 1,
+16,
+2
+);
+}
+ctx.fillStyle = '#07100b';
+ctx.fillRect(bx - 5, by - 6, 10, 12);
+ctx.strokeStyle = trHi;
+ctx.lineWidth = 1;
+ctx.strokeRect(
+bx - 5,
+by - 6,
+10,
+12
+);
+} else if (pat === 4) {
+// horizontal trace + 3 test-pad rects
+// looks like pcb calibration header
+const w1 = step * 0.26;
+ctx.beginPath();
+ctx.moveTo(bx - w1, by + 4);
+ctx.lineTo(bx + w1, by + 4);
+ctx.moveTo(bx - w1 * 0.7, by + 8);
+ctx.lineTo(bx + w1 * 0.7, by + 8);
+ctx.stroke();
+
+for (let k = -1; k <= 1; k++) {
+ctx.fillStyle = goldMain;
+ctx.fillRect(
+bx + k * 7 - 2.5,
+by - 6,
+5,
+4
+);
+}
+ctx.fillStyle = goldMain;
+ctx.fillRect(bx - 6, by + 1.5, 12, 5);
+ctx.fillStyle = '#09110d';
+ctx.fillRect(
+bx - 3.5,
+by + 1.5,
+7,
+5
+);
+} else if (pat === 5) {
+// angled 45-deg pair + flat ends
+// routes copper between corners
+const d = step * 0.22;
+const d3 = d * 0.3;
+const d6 = d * 0.6;
+ctx.beginPath();
+ctx.moveTo(bx - d, by - d6);
+ctx.lineTo(bx - d3, by - d6);
+ctx.lineTo(bx + d3, by + d6);
+ctx.lineTo(bx + d, by + d6);
+ctx.stroke();
+
+ctx.fillStyle = trHi;
+ctx.beginPath();
+ctx.arc(
+bx - d,
+by - d * 0.6,
+2,
+0,
+6.283
+);
+ctx.arc(
+bx + d,
+by + d * 0.6,
+2,
+0,
+6.283
+);
+ctx.fill();
+} else if (pat === 6) {
+// offset smd resistor + dual lines
+// asymmetric microchip bay detail
+const w1 = step * 0.25;
+ctx.beginPath();
+ctx.moveTo(bx - w1, by - 2);
+ctx.lineTo(bx + w1, by - 2);
+ctx.moveTo(bx - w1 * 0.8, by + 5);
+ctx.lineTo(bx + w1 * 0.5, by + 5);
+ctx.stroke();
+
+ctx.fillStyle = goldMain;
+ctx.fillRect(bx - 8, by - 5, 14, 6);
+ctx.fillStyle = '#09110d';
+ctx.fillRect(bx - 5, by - 5, 8, 6);
+
+ctx.fillStyle = trHi;
+ctx.beginPath();
+ctx.arc(
+bx + w1 * 0.5,
+by + 5,
+1.8,
+0,
+6.283
+);
+ctx.fill();
+} else {
+// triple horizontal micro-bus + smd
+// dense horizontal line pattern
+const w1 = step * 0.25;
+ctx.beginPath();
+ctx.moveTo(bx - w1, by - 6);
+ctx.lineTo(bx + w1 * 0.6, by - 6);
+ctx.moveTo(bx - w1 * 0.5, by);
+ctx.lineTo(bx + w1, by);
+ctx.moveTo(bx - w1 * 0.9, by + 6);
+ctx.lineTo(bx + w1 * 0.8, by + 6);
+ctx.stroke();
+
+ctx.fillStyle = goldMain;
+ctx.fillRect(
+bx - 2,
+by - 2.5,
+11,
+5
+);
+ctx.fillStyle = '#09110d';
+ctx.fillRect(bx, by - 2.5, 7, 5);
 }
 }
 }
@@ -1285,8 +1529,9 @@ r * 7 + c
 }
 }
 
-// draw flat contour spawn blueprints
-// small hollow outlines without glow
+// draw pulsing spawn blueprints
+// glows board pad & scales contour
+const padR = step * 0.19;
 for (
 let i = 0;
 i < previews.length;
@@ -1301,25 +1546,40 @@ const x = (p.c + 0.5) * step;
 const y = (p.r + 0.5) * step;
 const w =
 0.5 +
-0.5 * Math.sin(time * 3.8 + i * 1.9);
+0.5 * Math.sin(time * 4.2 + i * 1.9);
 const pr =
-nodeR * (0.21 + 0.16 * w);
+nodeR * (0.28 + 0.28 * w);
 const sh = sig.shape;
 
 ctx.save();
 ctx.translate(x, y);
-ctx.globalAlpha = 0.42 + 0.36 * w;
 
-// tiny dark pinhole over gold socket
-// gives contour contrast without glow
-ctx.fillStyle =
-'rgba(2, 6, 12, 0.58)';
+// glowing outline around board socket
+// lights up gold pad in signal color
+ctx.globalAlpha = 0.72 + 0.28 * w;
+ctx.strokeStyle = sig.glow;
+ctx.lineWidth = 4.5 + 2.2 * w;
 ctx.beginPath();
-ctx.arc(0, 0, pr * 1.12, 0, 6.283);
+ctx.arc(0, 0, padR * 1.05, 0, 6.283);
+ctx.stroke();
+
+ctx.strokeStyle = sig.hex;
+ctx.lineWidth = 2;
+ctx.beginPath();
+ctx.arc(0, 0, padR * 1.04, 0, 6.283);
+ctx.stroke();
+
+// dark contrast pinhole inside socket
+// keeps pulsing contour super clear
+ctx.fillStyle =
+'rgba(2, 6, 12, 0.72)';
+ctx.beginPath();
+ctx.arc(0, 0, padR * 0.86, 0, 6.283);
 ctx.fill();
 
 // trace flat 2d silhouette of shape
-// zero 3d fill so it never looks real
+// pulses bigger so player spots it
+ctx.globalAlpha = 0.68 + 0.32 * w;
 ctx.beginPath();
 if (sh === 'ring') {
 ctx.arc(0, 0, pr, 0, 6.283);
@@ -1388,15 +1648,15 @@ pr * 0.44,
 }
 
 // thin dark backing + crisp outline
-// no neon glow so it reads as ghost
+// readable blueprint of next signal
 ctx.strokeStyle =
-'rgba(2, 6, 12, 0.85)';
-ctx.lineWidth = 3.2;
+'rgba(2, 6, 12, 0.9)';
+ctx.lineWidth = 3.8;
 ctx.stroke();
 
 ctx.strokeStyle = sig.hex;
-ctx.lineWidth = 1.6;
-ctx.setLineDash([3, 2]);
+ctx.lineWidth = 2.1;
+ctx.setLineDash([4, 2]);
 ctx.stroke();
 ctx.setLineDash([]);
 
@@ -1404,7 +1664,7 @@ ctx.setLineDash([]);
 // marks exact socket intersection xy
 ctx.fillStyle = sig.light || sig.hex;
 ctx.beginPath();
-ctx.arc(0, 0, 1.6, 0, 6.283);
+ctx.arc(0, 0, 2, 0, 6.283);
 ctx.fill();
 ctx.restore();
 }
