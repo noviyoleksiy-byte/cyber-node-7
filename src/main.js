@@ -96,9 +96,9 @@ boostHex: '#00f0ff',
 lastTs: 0,
 };
 
-// build fixed pool of 80 particles
+// build fixed pool of 110 particles
 // avoids garbage collection in loop
-for (let i = 0; i < 80; i++) {
+for (let i = 0; i < 110; i++) {
 app.particles.push({
 active: false,
 x: 0,
@@ -107,7 +107,7 @@ vx: 0,
 vy: 0,
 life: 0,
 maxLife: 1,
-size: 3,
+size: 4,
 hex: '#00f0ff',
 });
 }
@@ -389,16 +389,16 @@ const pt = app.particles[i];
 if (!pt.active) {
 const ang =
 Math.random() * Math.PI * 2;
-const spd = 28 + Math.random() * 105;
+const spd = 34 + Math.random() * 118;
 pt.active = true;
 pt.x = x;
 pt.y = y;
 pt.vx = Math.cos(ang) * spd;
 pt.vy = Math.sin(ang) * spd;
 pt.maxLife =
-0.28 + Math.random() * 0.25;
+0.32 + Math.random() * 0.28;
 pt.life = pt.maxLife;
-pt.size = 2.0 + Math.random() * 2.4;
+pt.size = 3.2 + Math.random() * 3.4;
 pt.hex = hex;
 spawned++;
 if (spawned >= count) {
@@ -2120,7 +2120,7 @@ const my =
 (pB.r - pA.r) * frac) *
 step;
 const sig = getSignal(ma.color);
-spawnSparks(mx, my, sig.hex, 2);
+spawnSparks(mx, my, sig.hex, 3);
 spawnSparks(
 mx,
 my,

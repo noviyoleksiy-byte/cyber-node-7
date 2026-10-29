@@ -88,92 +88,53 @@ ctx.lineTo(x, y + c);
 ctx.closePath();
 }
 
-// trace volatile cyber-plasma contour
-// morphs distinct neon lobes in time
-function traceClotShape(
+// trace 4-point poly face & fill
+// fast helper with zero allocations
+function fillQuad(
 ctx,
-shape,
-r,
-time = 0,
-phase = 0
+x0,
+y0,
+x1,
+y1,
+x2,
+y2,
+x3,
+y3,
+col
 ) {
-const steps = 48;
+ctx.fillStyle = col;
 ctx.beginPath();
-for (let i = 0; i <= steps; i++) {
-const a =
-(i / steps) * Math.PI * 2;
-const rip =
-Math.sin(
-a * 7 - time * 9 + phase
-) *
-0.042 +
-Math.cos(
-a * 5 + time * 6 - phase
-) *
-0.028;
-let lobe = 1;
-if (shape === 'ring') {
-lobe =
-0.92 +
-0.08 *
-Math.cos(a * 8 + time * 3);
-} else if (shape === 'diamond') {
-const c4 = Math.cos(a * 4);
-lobe =
-0.78 +
-0.24 * c4 +
-0.05 * Math.cos(a * 8);
-} else if (shape === 'triangle') {
-lobe =
-0.8 +
-0.25 *
-Math.cos(a * 3 - Math.PI / 2);
-} else if (shape === 'hex') {
-lobe =
-0.88 +
-0.13 *
-Math.cos(a * 6 - Math.PI / 2);
-} else if (shape === 'star') {
-lobe =
-0.76 +
-0.27 *
-Math.cos(a * 5 - Math.PI / 2);
-} else if (shape === 'bolt') {
-lobe =
-0.75 +
-0.28 *
-Math.cos(a * 4) +
-0.04 *
-Math.sin(a * 8 - time * 6);
-} else if (shape === 'chip') {
-lobe =
-0.75 +
-0.28 *
-Math.cos(a * 4 - Math.PI);
-} else {
-lobe =
-0.77 +
-0.25 *
-Math.cos(
-a * 6 +
-Math.sin(time * 4 + phase) *
-0.4
-);
-}
-const rad = r * (lobe + rip);
-const px = Math.cos(a) * rad;
-const py = Math.sin(a) * rad;
-if (i === 0) {
-ctx.moveTo(px, py);
-} else {
-ctx.lineTo(px, py);
-}
-}
+ctx.moveTo(x0, y0);
+ctx.lineTo(x1, y1);
+ctx.lineTo(x2, y2);
+ctx.lineTo(x3, y3);
 ctx.closePath();
+ctx.fill();
 }
 
-// draw cyberpunk volatile plasma clot
-// dark magnetic well + neon filaments
+// trace 3-point tri face & fill
+// shades 3d facets without gradients
+function fillTri(
+ctx,
+x0,
+y0,
+x1,
+y1,
+x2,
+y2,
+col
+) {
+ctx.fillStyle = col;
+ctx.beginPath();
+ctx.moveTo(x0, y0);
+ctx.lineTo(x1, y1);
+ctx.lineTo(x2, y2);
+ctx.closePath();
+ctx.fill();
+}
+
+// draw 3d neon geometric construct
+// torus, cube, sphere, pyramid, etc.
 export function drawSignalNode(
 ctx,
 colorId,
@@ -189,228 +150,652 @@ const phase =
 (x * 0.05 + y * 0.07) % 6.28;
 const freq =
 groupSize >= 6
-? 14
+? 13
 : isSelected
-? 10
-: 6;
+? 9
+: 5;
 const amp =
 groupSize >= 6
-? 0.09
-: isSelected
 ? 0.08
-: 0.045;
+: isSelected
+? 0.07
+: 0.035;
+const sw = Math.sin(
+time * 2.1 + phase
+);
+const cw = Math.cos(
+time * 2.1 + phase
+);
 const pulse =
 1 +
 Math.sin(time * freq + phase) * amp;
-
-// plasma field radius on pcb socket
-// keeps high contrast over gold pad
-const r = radius * 1.03 * pulse;
+const r = radius * 1.04 * pulse;
+const shape = sig.shape;
 
 ctx.save();
 ctx.translate(x, y);
-
-const rot =
-Math.sin(time * 2.4 + phase) * 0.12 +
-(isSelected ? time * 1.6 : 0);
-
-// layer 1: outer neon plasma corona
-// soft magnetic haze around boundary
-ctx.save();
-ctx.rotate(rot);
-ctx.fillStyle = sig.glow;
-ctx.globalAlpha = isSelected
-? 0.62
-: 0.34;
-traceClotShape(
-ctx,
-sig.shape,
-r * 1.2,
-time,
-phase
-);
-ctx.fill();
-ctx.restore();
-
-// layer 2: dark magnetic void cavity
-// isolates neon plasma from pcb gold
-ctx.save();
-ctx.rotate(rot);
-ctx.fillStyle = 'rgba(2, 6, 11, 0.9)';
-traceClotShape(
-ctx,
-sig.shape,
-r * 1.04,
-time,
-phase
-);
-ctx.fill();
-ctx.strokeStyle =
-sig.dark || '#05101a';
-ctx.lineWidth = 2.2;
-ctx.stroke();
-ctx.restore();
-
-// layer 3: primary neon plasma shell
-// dark center grading to hot neon rim
-ctx.save();
-ctx.rotate(rot);
-const shellGrad =
-ctx.createRadialGradient(
-0,
-0,
-r * 0.08,
-0,
-0,
-r * 1.02
-);
-shellGrad.addColorStop(
-0,
-sig.dark || '#041019'
-);
-shellGrad.addColorStop(0.55, sig.hex);
-shellGrad.addColorStop(
-0.88,
-sig.light || '#ffffff'
-);
-shellGrad.addColorStop(1, sig.hex);
-ctx.fillStyle = shellGrad;
-ctx.globalAlpha = 0.88;
-traceClotShape(
-ctx,
-sig.shape,
-r * 0.96,
-time,
-phase
-);
-ctx.fill();
-
-// razor-sharp neon containment rim
-// gives crisp cyberpunk silhouette
-ctx.globalAlpha = 1;
-ctx.strokeStyle = sig.hex;
-ctx.lineWidth = 2.4;
-ctx.stroke();
-ctx.strokeStyle =
-sig.light || '#ffffff';
-ctx.lineWidth = 1.0;
-ctx.stroke();
-ctx.restore();
-
-// layer 4: counter-rotating sub-field
-// creates shifting plasma wave field
-ctx.save();
-ctx.rotate(-rot * 1.6 + 0.35);
-ctx.fillStyle = sig.dark || '#041019';
-ctx.globalAlpha = 0.68;
-traceClotShape(
-ctx,
-sig.shape,
-r * 0.68,
--time * 1.3,
-phase + 2.1
-);
-ctx.fill();
-ctx.globalAlpha = 0.92;
-ctx.strokeStyle =
-sig.light || '#ffffff';
-ctx.lineWidth = 1.35;
-ctx.stroke();
-ctx.restore();
-
-// layer 5: internal plasma tendrils
-// high-voltage arcs from core to rim
-ctx.save();
-ctx.strokeStyle =
-sig.light || '#ffffff';
-ctx.lineWidth = 1.3;
+ctx.lineJoin = 'round';
 ctx.lineCap = 'round';
-const arcs = 4;
-for (let i = 0; i < arcs; i++) {
-const baseA =
-(i / arcs) * Math.PI * 2 +
-time * 3.2 +
-phase;
-const midA =
-baseA +
-Math.sin(time * 9 + i * 1.9) * 0.38;
-const endR = r * 0.78;
-const mx =
-Math.cos(midA) * (endR * 0.54);
-const my =
-Math.sin(midA) * (endR * 0.54);
-const ex = Math.cos(baseA) * endR;
-const ey = Math.sin(baseA) * endR;
-ctx.beginPath();
-ctx.moveTo(0, 0);
-ctx.quadraticCurveTo(mx, my, ex, ey);
-ctx.stroke();
-}
-ctx.restore();
 
-// layer 6: unstable white-hot pinch
-// zero candy gloss, pure plasma core
-if (sig.shape === 'ring') {
-ctx.fillStyle = '#02070d';
-ctx.beginPath();
-ctx.arc(0, 0, r * 0.36, 0, 6.28);
-ctx.fill();
-ctx.strokeStyle = '#ffffff';
-ctx.lineWidth = 1.8;
-ctx.stroke();
+if (shape === 'ring') {
+// 1: 3d tilted neon torus (cyan)
+// hollow doughnut with 3d tube ribs
+ctx.save();
+ctx.rotate(0.36 + sw * 0.14);
 
-ctx.fillStyle = sig.hex;
+ctx.fillStyle = '#031219';
 ctx.beginPath();
-ctx.arc(0, 0, r * 0.14, 0, 6.28);
-ctx.fill();
-} else {
-const pinchR =
-r *
-(0.32 +
-Math.sin(time * 14 + phase) * 0.04);
-const coreGrad =
-ctx.createRadialGradient(
+ctx.ellipse(
 0,
 0,
+r * 1.05,
+r * 0.68,
 0,
-0,
-0,
-pinchR * 1.4
-);
-coreGrad.addColorStop(0, '#ffffff');
-coreGrad.addColorStop(
-0.5,
-sig.light || '#ffffff'
-);
-coreGrad.addColorStop(
-1,
-'rgba(0, 0, 0, 0)'
-);
-ctx.fillStyle = coreGrad;
-ctx.beginPath();
-ctx.arc(
-0,
-0,
-pinchR * 1.4,
 0,
 6.28
 );
 ctx.fill();
+ctx.strokeStyle = sig.glow;
+ctx.lineWidth = 4.6;
+ctx.stroke();
+ctx.strokeStyle = sig.hex;
+ctx.lineWidth = 2.2;
+ctx.stroke();
 
-// sharp white plasma core spark
-// anchors eye on the signal center
-ctx.fillStyle = '#ffffff';
-ctx.save();
-ctx.rotate(-time * 3 + phase);
-traceClotShape(
-ctx,
-sig.shape,
-pinchR * 0.75,
-time * 1.5,
-phase
+// upper 3d torus tube highlight rim
+// gives curved 3d doughnut volume
+ctx.strokeStyle =
+sig.light || '#e0ffff';
+ctx.lineWidth = 1.3;
+ctx.beginPath();
+ctx.ellipse(
+0,
+-r * 0.08,
+r * 0.82,
+r * 0.46,
+0,
+0,
+6.28
+);
+ctx.stroke();
+
+// 4 meridian ribs around torus tube
+// wraps wireframe around the ring
+ctx.strokeStyle = sig.hex;
+ctx.lineWidth = 1.2;
+ctx.beginPath();
+for (let i = 0; i < 4; i++) {
+const a =
+i * 1.57 + time * 0.9 + phase;
+const ca = Math.cos(a);
+const sa = Math.sin(a);
+ctx.moveTo(
+ca * r * 0.4,
+sa * r * 0.24
+);
+ctx.lineTo(
+ca * r * 1.03,
+sa * r * 0.66
+);
+}
+ctx.stroke();
+
+// deep hollow center hole of torus
+// no white dot, pure 3d torus bore
+ctx.fillStyle = '#02080d';
+ctx.beginPath();
+ctx.ellipse(
+0,
+0,
+r * 0.4,
+r * 0.23,
+0,
+0,
+6.28
 );
 ctx.fill();
+ctx.strokeStyle = sig.hex;
+ctx.lineWidth = 1.8;
+ctx.stroke();
 ctx.restore();
+} else if (shape === 'diamond') {
+// 2: 3d neon octahedron (cobalt)
+// 8-face bipyramid crystal wireframe
+const ty = -r * 1.1;
+const by = r * 1.1;
+const lx = -r * 0.92;
+const ly = -sw * r * 0.08;
+const rx = r * 0.92;
+const ry = sw * r * 0.08;
+const fx = sw * r * 0.34;
+const fy = r * 0.32;
+const kx = -sw * r * 0.34;
+const ky = -r * 0.26;
+
+fillTri(
+ctx,
+0,
+ty,
+lx,
+ly,
+fx,
+fy,
+'#061533'
+);
+fillTri(
+ctx,
+0,
+ty,
+fx,
+fy,
+rx,
+ry,
+'#0f2e6b'
+);
+fillTri(
+ctx,
+0,
+by,
+lx,
+ly,
+fx,
+fy,
+'#040e24'
+);
+fillTri(
+ctx,
+0,
+by,
+fx,
+fy,
+rx,
+ry,
+'#0a204d'
+);
+
+// outer glow + back wireframe axes
+// shows 3d depth through octahedron
+ctx.strokeStyle = sig.glow;
+ctx.lineWidth = 4.4;
+ctx.beginPath();
+ctx.moveTo(0, ty);
+ctx.lineTo(rx, ry);
+ctx.lineTo(0, by);
+ctx.lineTo(lx, ly);
+ctx.closePath();
+ctx.stroke();
+
+ctx.strokeStyle =
+'rgba(59, 130, 246, 0.45)';
+ctx.lineWidth = 1.1;
+ctx.beginPath();
+ctx.moveTo(lx, ly);
+ctx.lineTo(kx, ky);
+ctx.lineTo(rx, ry);
+ctx.moveTo(0, ty);
+ctx.lineTo(kx, ky);
+ctx.lineTo(0, by);
+ctx.stroke();
+
+// front neon octahedron edges
+// sharp cobalt & ice-blue ridges
+ctx.strokeStyle = sig.hex;
+ctx.lineWidth = 2.2;
+ctx.beginPath();
+ctx.moveTo(0, ty);
+ctx.lineTo(rx, ry);
+ctx.lineTo(0, by);
+ctx.lineTo(lx, ly);
+ctx.closePath();
+ctx.moveTo(lx, ly);
+ctx.lineTo(fx, fy);
+ctx.lineTo(rx, ry);
+ctx.moveTo(0, ty);
+ctx.lineTo(fx, fy);
+ctx.lineTo(0, by);
+ctx.stroke();
+
+ctx.strokeStyle =
+sig.light || '#dbeafe';
+ctx.lineWidth = 1.1;
+ctx.beginPath();
+ctx.moveTo(0, ty);
+ctx.lineTo(fx, fy);
+ctx.lineTo(rx, ry);
+ctx.stroke();
+} else if (shape === 'triangle') {
+// 3: 3d neon tetrahedron (emerald)
+// 4-vertex 3d delta polyhedron
+const ax = sw * r * 0.08;
+const ay = -r * 1.08;
+const bx = -r * 0.96;
+const by = r * 0.56;
+const cx = r * 0.96;
+const cy = r * 0.56;
+const dx = sw * r * 0.34;
+const dy = r * 0.14;
+
+fillTri(
+ctx,
+ax,
+ay,
+bx,
+by,
+dx,
+dy,
+'#042414'
+);
+fillTri(
+ctx,
+ax,
+ay,
+dx,
+dy,
+cx,
+cy,
+'#073d22'
+);
+fillTri(
+ctx,
+bx,
+by,
+dx,
+dy,
+cx,
+cy,
+'#02140b'
+);
+
+ctx.strokeStyle = sig.glow;
+ctx.lineWidth = 4.4;
+ctx.beginPath();
+ctx.moveTo(ax, ay);
+ctx.lineTo(cx, cy);
+ctx.lineTo(bx, by);
+ctx.closePath();
+ctx.stroke();
+
+ctx.strokeStyle = sig.hex;
+ctx.lineWidth = 2.2;
+ctx.stroke();
+
+// internal 3d tetrahedron ridges
+// y-junction meeting at front vertex
+ctx.strokeStyle =
+sig.light || '#dcfce7';
+ctx.lineWidth = 1.5;
+ctx.beginPath();
+ctx.moveTo(ax, ay);
+ctx.lineTo(dx, dy);
+ctx.moveTo(bx, by);
+ctx.lineTo(dx, dy);
+ctx.moveTo(cx, cy);
+ctx.lineTo(dx, dy);
+ctx.stroke();
+} else if (shape === 'hex') {
+// 4: 3d neon cube / tesseract
+// isometric 3d box + inner wire cube
+const s = r * 0.98;
+const wx = s * 0.866;
+const wy = s * 0.5;
+const jx = sw * r * 0.14;
+const jy = r * 0.06;
+
+// top, left and right 3d cube faces
+// distinct violet lighting per plane
+fillQuad(
+ctx,
+0,
+-s,
+wx,
+-wy,
+jx,
+jy,
+-wx,
+-wy,
+'#2d0c4e'
+);
+fillQuad(
+ctx,
+-wx,
+-wy,
+jx,
+jy,
+0,
+s,
+-wx,
+wy,
+'#160529'
+);
+fillQuad(
+ctx,
+jx,
+jy,
+wx,
+-wy,
+wx,
+wy,
+0,
+s,
+'#3f1170'
+);
+
+ctx.strokeStyle = sig.glow;
+ctx.lineWidth = 4.4;
+ctx.beginPath();
+ctx.moveTo(0, -s);
+ctx.lineTo(wx, -wy);
+ctx.lineTo(wx, wy);
+ctx.lineTo(0, s);
+ctx.lineTo(-wx, wy);
+ctx.lineTo(-wx, -wy);
+ctx.closePath();
+ctx.stroke();
+
+ctx.strokeStyle = sig.hex;
+ctx.lineWidth = 2.2;
+ctx.stroke();
+
+// inner 3d cube edges + tesseract
+// suspended sub-cube inside main box
+ctx.strokeStyle =
+sig.light || '#f3e8ff';
+ctx.lineWidth = 1.4;
+ctx.beginPath();
+ctx.moveTo(-wx, -wy);
+ctx.lineTo(jx, jy);
+ctx.lineTo(wx, -wy);
+ctx.moveTo(jx, jy);
+ctx.lineTo(0, s);
+const k = 0.45;
+ctx.moveTo(0, -s * k);
+ctx.lineTo(wx * k, -wy * k);
+ctx.lineTo(wx * k, wy * k);
+ctx.lineTo(0, s * k);
+ctx.lineTo(-wx * k, wy * k);
+ctx.lineTo(-wx * k, -wy * k);
+ctx.closePath();
+ctx.stroke();
+} else if (shape === 'star') {
+// 5: 3d neon pyramid (crimson red)
+// 5-vertex square-base cyber pyramid
+const px = sw * r * 0.1;
+const py = -r * 1.06;
+const lx = -r * 0.98;
+const ly = r * 0.36;
+const fx = sw * r * 0.28;
+const fy = r * 0.84;
+const rx = r * 0.98;
+const ry = r * 0.36;
+const kx = -sw * r * 0.28;
+const ky = -r * 0.04;
+
+fillTri(
+ctx,
+px,
+py,
+lx,
+ly,
+fx,
+fy,
+'#29030a'
+);
+fillTri(
+ctx,
+px,
+py,
+fx,
+fy,
+rx,
+ry,
+'#4c0614'
+);
+
+ctx.strokeStyle = sig.glow;
+ctx.lineWidth = 4.4;
+ctx.beginPath();
+ctx.moveTo(px, py);
+ctx.lineTo(rx, ry);
+ctx.lineTo(fx, fy);
+ctx.lineTo(lx, ly);
+ctx.closePath();
+ctx.stroke();
+
+// translucent rear base diamond edges
+// shows 4-corner square base in 3d
+ctx.strokeStyle =
+'rgba(255, 30, 66, 0.48)';
+ctx.lineWidth = 1.2;
+ctx.beginPath();
+ctx.moveTo(lx, ly);
+ctx.lineTo(kx, ky);
+ctx.lineTo(rx, ry);
+ctx.moveTo(px, py);
+ctx.lineTo(kx, ky);
+ctx.stroke();
+
+ctx.strokeStyle = sig.hex;
+ctx.lineWidth = 2.2;
+ctx.beginPath();
+ctx.moveTo(px, py);
+ctx.lineTo(rx, ry);
+ctx.lineTo(fx, fy);
+ctx.lineTo(lx, ly);
+ctx.closePath();
+ctx.stroke();
+
+ctx.strokeStyle =
+sig.light || '#ffe4e6';
+ctx.lineWidth = 1.5;
+ctx.beginPath();
+ctx.moveTo(px, py);
+ctx.lineTo(fx, fy);
+ctx.stroke();
+} else if (shape === 'bolt') {
+// 6: 3d neon holo-sphere (orange)
+// globe with rotating 3d meridians
+const sr = r * 0.95;
+ctx.fillStyle = '#1c0902';
+ctx.beginPath();
+ctx.arc(0, 0, sr, 0, 6.28);
+ctx.fill();
+ctx.strokeStyle = sig.glow;
+ctx.lineWidth = 4.4;
+ctx.stroke();
+
+// equator + 2 rotating 3d meridians
+// gives true spherical wireframe
+ctx.strokeStyle = sig.hex;
+ctx.lineWidth = 1.6;
+ctx.beginPath();
+ctx.ellipse(
+0,
+0,
+sr,
+sr * 0.34,
+0.2,
+0,
+6.28
+);
+const m1 =
+(0.12 + Math.abs(cw) * 0.82) * sr;
+ctx.ellipse(
+0,
+0,
+m1,
+sr,
+0.2,
+0,
+6.28
+);
+ctx.stroke();
+
+ctx.strokeStyle =
+sig.light || '#ffedd5';
+ctx.lineWidth = 1.4;
+ctx.beginPath();
+const m2 =
+(0.12 + Math.abs(sw) * 0.82) * sr;
+ctx.ellipse(
+0,
+0,
+m2,
+sr,
+0.2,
+0,
+6.28
+);
+ctx.stroke();
+
+ctx.strokeStyle = sig.hex;
+ctx.lineWidth = 2.2;
+ctx.beginPath();
+ctx.arc(0, 0, sr, 0, 6.28);
+ctx.stroke();
+} else if (shape === 'chip') {
+// 7: 3d neon hex-prism crystal (pink)
+// faceted 3-pane vertical cyber prism
+const tx = r * 0.48;
+const ty = r * 0.96;
+const sx = r * 0.88;
+const sy = r * 0.48;
+const m1 = (-0.28 + sw * 0.12) * r;
+const m2 = (0.28 + sw * 0.12) * r;
+
+fillQuad(
+ctx,
+-tx,
+-ty,
+m1,
+-sy,
+m1,
+sy,
+-tx,
+ty,
+'#240519'
+);
+fillQuad(
+ctx,
+m1,
+-sy,
+m2,
+-sy,
+m2,
+sy,
+m1,
+sy,
+'#470b32'
+);
+fillQuad(
+ctx,
+m2,
+-sy,
+tx,
+-ty,
+tx,
+ty,
+m2,
+sy,
+'#300722'
+);
+
+ctx.strokeStyle = sig.glow;
+ctx.lineWidth = 4.4;
+ctx.beginPath();
+ctx.moveTo(-tx, -ty);
+ctx.lineTo(tx, -ty);
+ctx.lineTo(sx, -sy);
+ctx.lineTo(sx, sy);
+ctx.lineTo(tx, ty);
+ctx.lineTo(-tx, ty);
+ctx.lineTo(-sx, sy);
+ctx.lineTo(-sx, -sy);
+ctx.closePath();
+ctx.stroke();
+
+ctx.strokeStyle = sig.hex;
+ctx.lineWidth = 2.2;
+ctx.stroke();
+
+// internal 3d prism crown & ridges
+// vertical facet seams along crystal
+ctx.strokeStyle =
+sig.light || '#fdf2f8';
+ctx.lineWidth = 1.3;
+ctx.beginPath();
+ctx.moveTo(-sx, -sy);
+ctx.lineTo(m1, -sy);
+ctx.lineTo(m2, -sy);
+ctx.lineTo(sx, -sy);
+ctx.moveTo(-sx, sy);
+ctx.lineTo(m1, sy);
+ctx.lineTo(m2, sy);
+ctx.lineTo(sx, sy);
+ctx.moveTo(-tx, -ty);
+ctx.lineTo(m1, -sy);
+ctx.lineTo(m1, sy);
+ctx.lineTo(-tx, ty);
+ctx.moveTo(tx, -ty);
+ctx.lineTo(m2, -sy);
+ctx.lineTo(m2, sy);
+ctx.lineTo(tx, ty);
+ctx.stroke();
+} else {
+// 8: 3d neon gyroscope (platinum)
+// 3 interlocking 3d orbital rings
+const gr = r * 0.94;
+ctx.fillStyle = '#0a1220';
+ctx.beginPath();
+ctx.arc(0, 0, gr, 0, 6.28);
+ctx.fill();
+ctx.strokeStyle = sig.glow;
+ctx.lineWidth = 4.2;
+ctx.stroke();
+ctx.strokeStyle = sig.hex;
+ctx.lineWidth = 1.9;
+ctx.stroke();
+
+ctx.strokeStyle = '#38bdf8';
+ctx.lineWidth = 1.6;
+ctx.beginPath();
+ctx.ellipse(
+0,
+0,
+gr * 0.94,
+gr * 0.34,
+time * 1.7 + phase,
+0,
+6.28
+);
+ctx.stroke();
+
+ctx.strokeStyle = sig.hex;
+ctx.lineWidth = 1.6;
+ctx.beginPath();
+ctx.ellipse(
+0,
+0,
+gr * 0.8,
+gr * 0.3,
+-time * 2.1 + phase + 1.05,
+0,
+6.28
+);
+ctx.stroke();
+
+ctx.strokeStyle = '#ffffff';
+ctx.lineWidth = 1.4;
+ctx.beginPath();
+ctx.ellipse(
+0,
+0,
+gr * 0.62,
+gr * 0.24,
+time * 1.3 + 2.1,
+0,
+6.28
+);
+ctx.stroke();
 }
 
 // draw crisp selection bracket ring
@@ -809,8 +1194,8 @@ r * 7 + c
 }
 }
 
-// draw compact preview shape outlines
-// shows where next 3 signals appear
+// draw clear incoming spawn reticles
+// shows target lock + mini 3d shape
 for (
 let i = 0;
 i < previews.length;
@@ -824,17 +1209,70 @@ const sig = getSignal(p.color);
 const x = (p.c + 0.5) * step;
 const y = (p.r + 0.5) * step;
 const wave =
-1 + Math.sin(time * 5 + i) * 0.08;
-const pr = nodeR * 0.48 * wave;
+1 + Math.sin(time * 6 + i) * 0.1;
+const br = nodeR * 0.82 * wave;
+const cr = br * 0.45;
 
+// dark contrast well over gold pad
+// makes spawn beacon pop on tracks
+ctx.fillStyle =
+'rgba(2, 6, 12, 0.88)';
+ctx.beginPath();
+ctx.arc(
+x,
+y,
+nodeR * 0.74,
+0,
+Math.PI * 2
+);
+ctx.fill();
+
+// pulsing neon target-lock brackets
+// frames intersection where it spawns
 ctx.save();
 ctx.translate(x, y);
+ctx.strokeStyle = sig.glow;
+ctx.lineWidth = 4.2;
+ctx.beginPath();
+ctx.arc(
+0,
+0,
+nodeR * 0.66 * wave,
+0,
+Math.PI * 2
+);
+ctx.stroke();
+
 ctx.strokeStyle = sig.hex;
-ctx.lineWidth = 1.8;
-ctx.globalAlpha = 0.78;
-traceClotShape(ctx, sig.shape, pr);
+ctx.lineWidth = 2.2;
+ctx.beginPath();
+ctx.moveTo(-br, -cr);
+ctx.lineTo(-br, -br);
+ctx.lineTo(-cr, -br);
+ctx.moveTo(cr, -br);
+ctx.lineTo(br, -br);
+ctx.lineTo(br, -cr);
+ctx.moveTo(br, cr);
+ctx.lineTo(br, br);
+ctx.lineTo(cr, br);
+ctx.moveTo(-cr, br);
+ctx.lineTo(-br, br);
+ctx.lineTo(-br, cr);
 ctx.stroke();
 ctx.restore();
+
+// miniature 3d holo-construct inside
+// shows exact incoming shape & color
+drawSignalNode(
+ctx,
+p.color,
+x,
+y,
+nodeR * 0.52 * wave,
+time,
+false,
+1
+);
 }
 
 // draw stationary energy clots
