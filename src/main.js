@@ -30,10 +30,12 @@ drawFoxHeader,
 drawThemePreview,
 } from './renderer.js';
 
-// set localStorage key for profile
-// stores coins, level, themes & lang
+// set localStorage keys for profile
+// stores save state and leaderboard
 const SAVE_KEY =
 'cyber_node_7_save_v1';
+const LB_KEY =
+'cyber_node_7_lb_v1';
 
 // create global sound synth instance
 // plays cyber tones and bassline
@@ -56,6 +58,14 @@ lang: 'ru',
 unlockedThemes: ['obsidian'],
 activeTheme: 'obsidian',
 pickerIdx: 0,
+lbSortBy: 'score',
+leaderboard: [
+{ score: 1420, moves: 38, chains: 8 },
+{ score: 1180, moves: 64, chains: 7 },
+{ score: 960, moves: 42, chains: 11 },
+{ score: 740, moves: 51, chains: 5 },
+{ score: 520, moves: 24, chains: 4 },
+],
 cfg: { ...DEFAULT_CONFIG },
 spec: null,
 goalProgress: {
@@ -86,9 +96,9 @@ boostHex: '#00f0ff',
 lastTs: 0,
 };
 
-// build fixed pool of 60 particles
+// build fixed pool of 80 particles
 // avoids garbage collection in loop
-for (let i = 0; i < 60; i++) {
+for (let i = 0; i < 80; i++) {
 app.particles.push({
 active: false,
 x: 0,
@@ -102,15 +112,13 @@ hex: '#00f0ff',
 });
 }
 
-// load saved profile from storage
-// keeps coins and unlocked themes
+// load saved profile and leaderboard
+// keeps coins, themes and top runs
 function loadProfile() {
 try {
 const raw =
 localStorage.getItem(SAVE_KEY);
-if (!raw) {
-return;
-}
+if (raw) {
 const data = JSON.parse(raw);
 if (typeof data.coins === 'number') {
 app.coins = Math.max(0, data.coins);
@@ -176,6 +184,18 @@ typeof data.musicVol === 'number'
 ) {
 sound.musicVol = data.musicVol;
 }
+}
+const rawLb =
+localStorage.getItem(LB_KEY);
+if (rawLb) {
+const parsed = JSON.parse(rawLb);
+if (
+Array.isArray(parsed) &&
+parsed.length > 0
+) {
+app.leaderboard = parsed;
+}
+}
 } catch (_e) {
 // skip corrupted storage silently
 // keeps safe default values active
@@ -205,10 +225,136 @@ localStorage.setItem(
 SAVE_KEY,
 JSON.stringify(payload)
 );
+localStorage.setItem(
+LB_KEY,
+JSON.stringify(app.leaderboard)
+);
 } catch (_e) {
 // ignore quota errors in private mode
 // game continues in memory
 }
+}
+
+// record run into local leaderboard
+// deduplicates and keeps top 25 runs
+function recordLeaderboardRun() {
+if (
+app.score <= 0 &&
+app.goalProgress.chains <= 0
+) {
+return;
+}
+app.leaderboard.push({
+score: app.score,
+moves: app.movesCount,
+chains: app.goalProgress.chains,
+});
+app.leaderboard.sort((a, b) => {
+if (b.score !== a.score) {
+return b.score - a.score;
+}
+if (b.moves !== a.moves) {
+return b.moves - a.moves;
+}
+return b.chains - a.chains;
+});
+if (app.leaderboard.length > 25) {
+app.leaderboard.length = 25;
+}
+saveProfile();
+}
+
+// render sorted leaderboard table
+// default order: score, moves, chains
+function renderLeaderboardUI() {
+const wrap = el('lb-rows');
+if (!wrap) {
+return;
+}
+wrap.innerHTML = '';
+
+const list = app.leaderboard.slice();
+if (
+app.state === 'playing' &&
+app.score > 0
+) {
+list.push({
+score: app.score,
+moves: app.movesCount,
+chains: app.goalProgress.chains,
+});
+}
+
+const key = app.lbSortBy;
+list.sort((a, b) => {
+if (key === 'moves') {
+if (b.moves !== a.moves) {
+return b.moves - a.moves;
+}
+if (b.score !== a.score) {
+return b.score - a.score;
+}
+return b.chains - a.chains;
+}
+if (key === 'chains') {
+if (b.chains !== a.chains) {
+return b.chains - a.chains;
+}
+if (b.score !== a.score) {
+return b.score - a.score;
+}
+return b.moves - a.moves;
+}
+if (b.score !== a.score) {
+return b.score - a.score;
+}
+if (b.moves !== a.moves) {
+return b.moves - a.moves;
+}
+return b.chains - a.chains;
+});
+
+const top = list.slice(0, 12);
+top.forEach((row, idx) => {
+const div =
+document.createElement('div');
+div.className = 'lb-row';
+const cRank =
+document.createElement('span');
+cRank.textContent = String(idx + 1);
+const cScore =
+document.createElement('span');
+cScore.textContent = String(
+row.score
+);
+const cMoves =
+document.createElement('span');
+cMoves.textContent = String(
+row.moves
+);
+const cChains =
+document.createElement('span');
+cChains.textContent = String(
+row.chains
+);
+div.appendChild(cRank);
+div.appendChild(cScore);
+div.appendChild(cMoves);
+div.appendChild(cChains);
+wrap.appendChild(div);
+});
+
+['score', 'moves', 'chains'].forEach(
+(k) => {
+const btn = el('sort-' + k);
+if (btn) {
+btn.classList.toggle(
+'active',
+app.lbSortBy === k
+);
+}
+}
+);
 }
 
 // find dom element by id shorthand
@@ -226,7 +372,7 @@ nextState;
 }
 
 // spawn burst of pooled particles
-// runs on node discharge or laser
+// runs on node discharge or move
 function spawnSparks(
 x,
 y,
@@ -243,16 +389,16 @@ const pt = app.particles[i];
 if (!pt.active) {
 const ang =
 Math.random() * Math.PI * 2;
-const spd = 40 + Math.random() * 130;
+const spd = 28 + Math.random() * 105;
 pt.active = true;
 pt.x = x;
 pt.y = y;
 pt.vx = Math.cos(ang) * spd;
 pt.vy = Math.sin(ang) * spd;
 pt.maxLife =
-0.35 + Math.random() * 0.25;
+0.28 + Math.random() * 0.25;
 pt.life = pt.maxLife;
-pt.size = 2.2 + Math.random() * 2.5;
+pt.size = 2.0 + Math.random() * 2.4;
 pt.hex = hex;
 spawned++;
 if (spawned >= count) {
@@ -265,6 +411,9 @@ break;
 // setup new board table for level
 // places initial nodes and 3 previews
 function setupTable() {
+if (app.score > 0) {
+recordLeaderboardRun();
+}
 if (app.autoSpawnTimer) {
 clearTimeout(app.autoSpawnTimer);
 app.autoSpawnTimer = null;
@@ -316,8 +465,6 @@ app.goalProgress.colors[k] = 0;
 const sz = app.spec.gridSize;
 app.grid = createEmptyGrid(sz);
 
-// place starting signals on sockets
-// avoids accidental 7+ on frame 0
 for (
 let i = 0;
 i < app.spec.startNodes;
@@ -428,8 +575,6 @@ app.bestScore = app.score;
 }
 app.coins += res.totalCoins;
 
-// update campaign objective counters
-// counts chains, score, rainbow, hue
 app.goalProgress.chains +=
 res.dischargedGroups.length;
 app.goalProgress.score = app.score;
@@ -460,8 +605,6 @@ app.goalProgress.colors[grp.color] +=
 1;
 }
 
-// add lightning bolts along chain
-// connects consecutive cells visually
 for (
 let j = 0;
 j < grp.cells.length;
@@ -485,8 +628,6 @@ life: 0.42,
 }
 }
 
-// add 10+ resonance arcs across board
-// shoots bolts to all same-hue nodes
 for (
 let i = 0;
 i < res.resonanceArcs.length;
@@ -507,8 +648,6 @@ life: 0.55,
 });
 }
 
-// boost purple-fox on cyber-skate
-// 4x speed for 1.2s or rainbow warp
 const topGroup =
 res.dischargedGroups[0];
 const topSig = getSignal(
@@ -541,6 +680,7 @@ function triggerLevelComplete() {
 if (app.state !== 'playing') {
 return;
 }
+recordLeaderboardRun();
 setAppState('gameover');
 const bonus = app.spec
 ? app.spec.levelCoinBonus *
@@ -566,7 +706,7 @@ el('level-modal').classList.remove(
 );
 }
 
-// check if all 81 sockets are filled
+// check if all sockets are filled
 // prompts overload rescue via ad
 function checkBoardOverload() {
 const free =
@@ -590,8 +730,6 @@ color
 app.grid[toR][toC] = color;
 app.movesCount += 1;
 
-// check if player stepped on preview
-// bounces holographic ring with arc
 const bounced = bouncePreviewIfHit(
 app.grid,
 app.previews,
@@ -606,8 +744,6 @@ life: 0.45,
 sound.playBounce();
 }
 
-// check if move formed 7+ chain
-// skips spawning 3 nodes on discharge
 const didClear =
 checkAndRunDischarges();
 if (didClear) {
@@ -615,8 +751,6 @@ updateHudUI();
 return;
 }
 
-// reset streak on non-clearing move
-// spawns 3 preview signals onto board
 app.streak = 0;
 const sp = spawnFromPreviews(
 app.grid,
@@ -626,8 +760,6 @@ app.spec ? app.spec.colors : 7
 app.previews = sp.nextPreviews;
 updateHudUI();
 
-// auto-check if spawned node made 7+
-// waits 0.25s pause per gdd rule
 const onAutoWait = () => {
 app.autoSpawnTimer = null;
 const autoCleared =
@@ -691,8 +823,6 @@ sz
 
 const cellColor = app.grid[r][c];
 
-// check if laser booster is active
-// erases 1 blocking node without turn
 if (app.boosterMode === 'laser') {
 if (cellColor > 0) {
 pushUndoSnapshot();
@@ -714,16 +844,12 @@ updateHudUI();
 return;
 }
 
-// select or switch own signal node
-// highlights node with spinning ring
 if (cellColor > 0) {
 app.selected = { r, c };
 sound.playSelect();
 return;
 }
 
-// move selected node to empty socket
-// uses air jump for teleport or bfs
 if (!app.selected) {
 return;
 }
@@ -765,8 +891,6 @@ r,
 c
 );
 if (!path) {
-// play subtle blocked buzz if no wire
-// keeps current selection active
 sound.playTone(
 150,
 110,
@@ -782,8 +906,6 @@ app.grid[r0][c0] = 0;
 app.selected = null;
 sound.playStep(path.length);
 
-// animate signal running along wires
-// settles in ~140ms for snappy feel
 app.movingAnim = {
 path,
 progress: 0,
@@ -827,8 +949,6 @@ return;
 }
 sound.wake();
 
-// toggle off if already armed
-// refunds nothing since paid on arm
 if (
 (kind === 'laser' &&
 app.boosterMode === 'laser') ||
@@ -1045,7 +1165,7 @@ el('price-teleport').textContent =
 }
 
 // sync all top HUD counters and goal
-// formats numbers with tabular-nums
+// updates 3-column readable readouts
 function updateHudUI() {
 const dict = getDict(app.lang);
 el('hud-coins').textContent =
@@ -1058,10 +1178,12 @@ app.coins
 el('hud-score').textContent = String(
 app.score
 );
-el('hud-best').textContent =
-`${dict.best}: ${app.bestScore}`;
-el('hud-moves').textContent =
-`${dict.moves}: ${app.movesCount}`;
+el('hud-best').textContent = String(
+app.bestScore
+);
+el('hud-moves').textContent = String(
+app.movesCount
+);
 
 if (app.mode === 'campaign') {
 el('hud-level').textContent =
@@ -1083,40 +1205,47 @@ el('hud-bonus').classList.add(
 );
 }
 
-// format goal readout & color dots
-// adapts to Type A, B, C or Endless
 const goalTxt = el('hud-goal-text');
 const dotsWrap = el('hud-goal-dots');
+const lblChains =
+el('lbl-hud-chains');
 dotsWrap.innerHTML = '';
 
 if (
 !app.spec ||
 app.mode !== 'campaign'
 ) {
-const ch = app.goalProgress.chains;
-goalTxt.textContent =
-`${dict.goalChains} ${ch}`;
+lblChains.textContent =
+dict.chainsUpper;
+goalTxt.textContent = String(
+app.goalProgress.chains
+);
 return;
 }
 
 const gt = app.spec.goalType;
 if (gt === 'chains') {
+lblChains.textContent =
+dict.chainsUpper;
 goalTxt.textContent =
-`${dict.goalChains} ` +
 `${app.goalProgress.chains}/` +
 `${app.spec.targetChains}`;
 } else if (gt === 'score') {
+lblChains.textContent =
+dict.goalScore.toUpperCase();
 const ts = app.spec.targetScore;
 goalTxt.textContent =
-`${dict.goalScore} ` +
 `${app.score}/${ts}`;
 } else if (gt === 'rainbow') {
+lblChains.textContent =
+dict.chainsUpper;
 goalTxt.textContent =
-`${dict.goalRainbow} ` +
-`${app.goalProgress.rainbow}/` +
+`9+: ${app.goalProgress.rainbow}/` +
 `${app.spec.targetChains}`;
 } else if (gt === 'colors') {
-goalTxt.textContent = dict.goalColors;
+lblChains.textContent =
+dict.chainsUpper;
+goalTxt.textContent = '';
 const entries = Object.entries(
 app.spec.colorTargets
 );
@@ -1215,6 +1344,14 @@ function applyLanguageUI() {
 const dict = getDict(app.lang);
 document.documentElement.lang =
 app.lang;
+el('lbl-hud-score').textContent =
+dict.scoreUpper;
+el('lbl-hud-best').textContent =
+dict.bestUpper;
+el('lbl-hud-moves').textContent =
+dict.movesUpper;
+el('lbl-hud-chains').textContent =
+dict.chainsUpper;
 el('txt-menu-title').textContent =
 dict.title;
 el('tab-campaign').textContent =
@@ -1229,8 +1366,28 @@ el('lbl-free-colors').textContent =
 dict.colorsLabel;
 el('lbl-free-grid').textContent =
 dict.gridLabel;
+el('btn-menu-lb').textContent =
+`🏆 ${dict.lbBtn}`;
 el('btn-start').textContent =
 dict.play;
+el('txt-lb-title').textContent =
+dict.lbTitle;
+el('lbl-lb-sort').textContent =
+dict.lbSort;
+el('sort-score').textContent =
+dict.lbColScore;
+el('sort-moves').textContent =
+dict.lbColMoves;
+el('sort-chains').textContent =
+dict.lbColChains;
+el('th-lb-score').textContent =
+dict.lbColScore;
+el('th-lb-moves').textContent =
+dict.lbColMoves;
+el('th-lb-chains').textContent =
+dict.lbColChains;
+el('btn-lb-done').textContent =
+dict.lbClose;
 el('txt-level-done').textContent =
 dict.levelDone;
 el('lbl-lv-score').textContent =
@@ -1298,6 +1455,7 @@ syncModeTabsUI();
 updateThemePickerUI();
 updateBoosterUI();
 updateHudUI();
+renderLeaderboardUI();
 }
 
 // update bottom banner link and image
@@ -1323,6 +1481,9 @@ function startGameNow() {
 sound.wake();
 sound.startMusic();
 el('menu-modal').classList.add(
+'hidden'
+);
+el('leaderboard-modal').classList.add(
 'hidden'
 );
 el('level-modal').classList.add(
@@ -1353,8 +1514,6 @@ setupTable();
 // wire all UI buttons and inputs
 // runs once when page loads
 function bindEvents() {
-// build 3 language buttons in drawer
-// switches dictionary on tap
 const langGrid = el('lang-grid');
 LANG_CODES.forEach((code) => {
 const btn =
@@ -1373,8 +1532,52 @@ applyLanguageUI();
 langGrid.appendChild(btn);
 });
 
-// switch between campaign & free net
-// works in menu and settings drawer
+// wire leaderboard modal & sorting
+// sorts by score, moves, or chains
+const openLb = () => {
+renderLeaderboardUI();
+el(
+'leaderboard-modal'
+).classList.remove('hidden');
+};
+const closeLb = () => {
+el('leaderboard-modal').classList.add(
+'hidden'
+);
+};
+el(
+'btn-leaderboard'
+).addEventListener('click', openLb);
+el('btn-menu-lb').addEventListener(
+'click',
+openLb
+);
+el('btn-close-lb').addEventListener(
+'click',
+closeLb
+);
+el('btn-lb-done').addEventListener(
+'click',
+closeLb
+);
+
+['score', 'moves', 'chains'].forEach(
+(k) => {
+const onSort = () => {
+app.lbSortBy = k;
+renderLeaderboardUI();
+};
+el('sort-' + k).addEventListener(
+'click',
+onSort
+);
+el('th-lb-' + k).addEventListener(
+'click',
+onSort
+);
+}
+);
+
 const setMode = (m, restartNow) => {
 app.mode = m;
 syncModeTabsUI();
@@ -1404,8 +1607,6 @@ el('set-tab-free').addEventListener(
 () => setMode('free', true)
 );
 
-// wire free-net color count chips
-// supports 4 to 8 signal colors
 document
 .querySelectorAll(
 '#free-colors-row .chip-btn'
@@ -1429,8 +1630,6 @@ saveProfile();
 });
 });
 
-// wire free-net board size chips
-// supports 7x7, 8x8, and 9x9 grids
 document
 .querySelectorAll(
 '#free-grid-row .chip-btn'
@@ -1454,8 +1653,6 @@ saveProfile();
 });
 });
 
-// navigate board themes in start menu
-// unlocks or selects chosen pcb theme
 el('btn-theme-prev').addEventListener(
 'click',
 () => {
@@ -1511,8 +1708,6 @@ updateHudUI();
 }
 );
 
-// wire primary start & restart btns
-// transitions state to playing
 el('btn-start').addEventListener(
 'click',
 startGameNow
@@ -1532,9 +1727,8 @@ el(
 startGameNow
 );
 
-// wire return-to-menu buttons
-// opens title & theme shop modal
 const openMenuModal = () => {
+recordLeaderboardRun();
 setAppState('title');
 el('over-modal').classList.add(
 'hidden'
@@ -1557,8 +1751,6 @@ sMenu.addEventListener(
 openMenuModal
 );
 
-// wire settings drawer controls
-// manages audio and language options
 el('btn-settings').addEventListener(
 'click',
 () => {
@@ -1623,8 +1815,6 @@ saveProfile();
 }
 );
 
-// wire debug drawer inputs
-// edits coins, level, costs & banner
 el('btn-open-debug').addEventListener(
 'click',
 () => {
@@ -1750,8 +1940,6 @@ applyBottomBanner();
 }
 );
 
-// wire 3 bottom booster buttons
-// undo, laser pulse, and teleport
 el('btn-undo').addEventListener(
 'click',
 () => onBoosterClick('undo')
@@ -1765,8 +1953,6 @@ el('btn-teleport').addEventListener(
 () => onBoosterClick('teleport')
 );
 
-// wire ad modal buttons
-// watch 3s video, pay coins, or skip
 el('btn-watch-ad').addEventListener(
 'click',
 startAdCountdown
@@ -1799,6 +1985,7 @@ el('ad-modal').classList.add(
 if (
 app.pendingAdAction === 'overload'
 ) {
+recordLeaderboardRun();
 setAppState('gameover');
 sound.playGameOver();
 el('val-over-score').textContent =
@@ -1813,8 +2000,6 @@ app.pendingAdAction = null;
 }
 );
 
-// wire pointerdown on board canvas
-// supports touch and mouse clicks
 const bCanvas = el('board-canvas');
 bCanvas.addEventListener(
 'pointerdown',
@@ -1824,8 +2009,6 @@ onBoardTap(e.clientX, e.clientY);
 }
 );
 
-// wire keyboard shortcuts for game
-// Enter or Space starts from menu
 window.addEventListener(
 'keydown',
 (e) => {
@@ -1875,25 +2058,52 @@ app.fox.boostTimer > 0
 app.fox.scrollX += dt * 55 * speedMul;
 
 // advance sliding wire move animation
-// triggers finishMoveAt on arrival
+// emits colored sparks along trace
 if (app.movingAnim) {
-app.movingAnim.progress +=
-dt * app.movingAnim.speed;
-if (app.movingAnim.progress >= 1) {
-const done = app.movingAnim;
+const ma = app.movingAnim;
+ma.progress += dt * ma.speed;
+
+const bCanvas = el('board-canvas');
+const bw = bCanvas
+? bCanvas.width
+: 540;
+const step = bw / app.grid.length;
+const totalSegs = ma.path.length - 1;
+const exact =
+Math.min(0.999, ma.progress) *
+totalSegs;
+const idx = Math.floor(exact);
+const frac = exact - idx;
+const pA = ma.path[idx];
+const pB =
+ma.path[
+Math.min(totalSegs, idx + 1)
+];
+const mx =
+(pA.c +
+0.5 +
+(pB.c - pA.c) * frac) *
+step;
+const my =
+(pA.r +
+0.5 +
+(pB.r - pA.r) * frac) *
+step;
+const sig = getSignal(ma.color);
+spawnSparks(mx, my, sig.hex, 2);
+
+if (ma.progress >= 1) {
 app.movingAnim = null;
 finishMoveAt(
-done.fromR,
-done.fromC,
-done.toR,
-done.toC,
-done.color
+ma.fromR,
+ma.fromC,
+ma.toR,
+ma.toC,
+ma.color
 );
 }
 }
 
-// decay preview bounce electric arcs
-// removes finished arcs from list
 for (
 let i = app.bounceArcs.length - 1;
 i >= 0;
@@ -1905,8 +2115,6 @@ app.bounceArcs.splice(i, 1);
 }
 }
 
-// decay discharge lightning bolts
-// keeps bright flash for ~0.45s
 for (
 let i = app.lightningBolts.length - 1;
 i >= 0;
@@ -1918,8 +2126,6 @@ app.lightningBolts.splice(i, 1);
 }
 }
 
-// update pooled spark particles
-// moves and fades active sparks
 for (
 let i = 0;
 i < app.particles.length;
@@ -1937,8 +2143,6 @@ pt.active = false;
 }
 }
 
-// draw top panoramic fox skate window
-// renders moving stars, fox & trails
 const foxCanvas = el('fox-canvas');
 if (foxCanvas) {
 const fCtx =
@@ -1951,8 +2155,6 @@ app.fox
 );
 }
 
-// draw main pcb intersection board
-// renders wires, nodes & discharges
 const bCanvas = el('board-canvas');
 if (bCanvas) {
 const bCtx =
@@ -1976,8 +2178,6 @@ boosterMode: app.boosterMode,
 );
 }
 
-// draw theme preview in start modal
-// animates only while menu is open
 if (app.state === 'title') {
 const prevCanvas = el(
 'theme-preview-canvas'

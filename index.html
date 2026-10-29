@@ -55,6 +55,12 @@ class="hud-coins-txt"
 </div>
 <div class="top-right-btns">
 <button
+id="btn-leaderboard"
+type="button"
+class="btn-gear"
+aria-label="Leaderboard"
+>🏆</button>
+<button
 id="btn-settings"
 type="button"
 class="btn-gear"
@@ -62,31 +68,59 @@ aria-label="Settings"
 >⚙</button>
 </div>
 </div>
-<div class="fox-window-wrap">
+
+<div class="hud-main-deck">
+<div class="hud-side-col">
+<div class="stat-board">
+<span
+id="lbl-hud-score"
+class="stat-lbl"
+>ОЧКИ</span>
+<strong
+id="hud-score"
+class="stat-val accent-cyan"
+>0</strong>
+</div>
+<div class="stat-board">
+<span
+id="lbl-hud-best"
+class="stat-lbl"
+>РЕКОРД</span>
+<strong
+id="hud-best"
+class="stat-val"
+>0</strong>
+</div>
+</div>
+
+<div class="fox-center-window">
 <canvas
 id="fox-canvas"
-width="440"
-height="92"
+width="210"
+height="86"
 ></canvas>
-<div class="fox-hud-overlay">
-<div class="fox-score-row">
-<span
-id="hud-score"
-class="score-main"
->0</span>
-<span
-id="hud-best"
-class="score-sub"
->Рекорд: 0</span>
-<span
-id="hud-moves"
-class="score-sub"
->Ходы: 0</span>
 </div>
-<div class="fox-goal-row">
-<span id="hud-goal-text">
-Цепи: 0/2
-</span>
+
+<div class="hud-side-col">
+<div class="stat-board">
+<span
+id="lbl-hud-moves"
+class="stat-lbl"
+>ХОДЫ</span>
+<strong
+id="hud-moves"
+class="stat-val"
+>0</strong>
+</div>
+<div class="stat-board">
+<span
+id="lbl-hud-chains"
+class="stat-lbl"
+>ЦЕПИ</span>
+<strong
+id="hud-goal-text"
+class="stat-val accent-green"
+>0/2</strong>
 <span
 id="hud-goal-dots"
 class="goal-color-dots"
@@ -225,7 +259,7 @@ aria-label="Next theme"
 </div>
 <div class="theme-meta-row">
 <span id="txt-theme-name">
-Кибер Обсидиан
+Зеленая Плата
 </span>
 <button
 id="btn-theme-buy"
@@ -233,12 +267,82 @@ type="button"
 class="btn-secondary"
 >Открыто</button>
 </div>
+<div class="menu-actions-row">
+<button
+id="btn-menu-lb"
+type="button"
+class="btn-secondary"
+>🏆 Лидеры</button>
 <button
 id="btn-start"
 type="button"
 class="btn-primary"
 data-start="true"
 >Играть</button>
+</div>
+</div>
+</div>
+
+<div
+id="leaderboard-modal"
+class="overlay-backdrop hidden"
+>
+<div class="modal-card lb-card">
+<div class="row-between">
+<strong
+id="txt-lb-title"
+class="modal-title"
+>Таблица лидеров</strong>
+<button
+id="btn-close-lb"
+type="button"
+class="btn-gear"
+aria-label="Close leaderboard"
+>✕</button>
+</div>
+<div class="lb-sort-row">
+<span
+id="lbl-lb-sort"
+class="lb-sort-lbl"
+>Сортировка:</span>
+<div class="lb-sort-btns">
+<button
+id="sort-score"
+type="button"
+class="chip-btn active"
+data-sort="score"
+>ОЧКИ</button>
+<button
+id="sort-moves"
+type="button"
+class="chip-btn"
+data-sort="moves"
+>ХОДЫ</button>
+<button
+id="sort-chains"
+type="button"
+class="chip-btn"
+data-sort="chains"
+>ЦЕПИ</button>
+</div>
+</div>
+<div class="lb-table-wrap">
+<div class="lb-head-row">
+<span>#</span>
+<span id="th-lb-score">ОЧКИ</span>
+<span id="th-lb-moves">ХОДЫ</span>
+<span id="th-lb-chains">ЦЕПИ</span>
+</div>
+<div
+id="lb-rows"
+class="lb-rows"
+></div>
+</div>
+<button
+id="btn-lb-done"
+type="button"
+class="btn-primary"
+>Закрыть</button>
 </div>
 </div>
 
@@ -253,7 +357,7 @@ class="modal-title"
 >Стол пройден!</strong>
 <div class="stats-box">
 <div class="stats-line">
-<span id="lbl-lv-score">Счет:</span>
+<span id="lbl-lv-score">Очки:</span>
 <strong id="val-lv-score">0</strong>
 </div>
 <div class="stats-line">
@@ -317,7 +421,7 @@ class="modal-title"
 >Плата перегружена</strong>
 <div class="stats-box">
 <div class="stats-line">
-<span id="lbl-over-score">Счет:</span>
+<span id="lbl-over-score">Очки:</span>
 <strong id="val-over-score">0</strong>
 </div>
 <div class="stats-line">
