@@ -133,6 +133,80 @@ ctx.closePath();
 ctx.fill();
 }
 
+// cache soft plasma cushion per color
+// avoids creating gradients per frame
+const haloCache = {};
+
+// build 64x64 radial plasma cushion
+// separates 3d nodes from pcb tracks
+function getHaloSprite(colorId, sig) {
+if (typeof document === 'undefined') {
+return null;
+}
+if (haloCache[colorId]) {
+return haloCache[colorId];
+}
+const c =
+document.createElement('canvas');
+c.width = 64;
+c.height = 64;
+const g = c.getContext('2d');
+
+// soft colored plasma aura on node
+// fades smoothly before cell border
+const rad = g.createRadialGradient(
+32,
+32,
+4,
+32,
+32,
+30
+);
+rad.addColorStop(0, sig.hex);
+rad.addColorStop(0.45, sig.glow);
+rad.addColorStop(
+1,
+'rgba(0, 0, 0, 0)'
+);
+g.save();
+g.globalAlpha = 0.62;
+g.fillStyle = rad;
+g.beginPath();
+g.arc(32, 32, 30, 0, 6.283);
+g.fill();
+g.restore();
+
+// compact dark pad under chip base
+// keeps gold socket from bleeding in
+const core = g.createRadialGradient(
+32,
+32,
+2,
+32,
+32,
+20
+);
+core.addColorStop(
+0,
+'rgba(3, 8, 16, 0.88)'
+);
+core.addColorStop(
+0.65,
+'rgba(3, 8, 16, 0.64)'
+);
+core.addColorStop(
+1,
+'rgba(3, 8, 16, 0)'
+);
+g.fillStyle = core;
+g.beginPath();
+g.arc(32, 32, 20, 0, 6.283);
+g.fill();
+
+haloCache[colorId] = c;
+return c;
+}
+
 // draw 3d neon geometric construct
 // torus, cube, sphere, pyramid, etc.
 export function drawSignalNode(
@@ -176,6 +250,23 @@ ctx.save();
 ctx.translate(x, y);
 ctx.lineJoin = 'round';
 ctx.lineCap = 'round';
+
+// soft plasma cushion under 3d node
+// lifts 3d shape off dark green pcb
+const halo = getHaloSprite(
+colorId,
+sig
+);
+if (halo) {
+const hr = r * 1.36;
+ctx.drawImage(
+halo,
+-hr,
+-hr,
+hr * 2,
+hr * 2
+);
+}
 
 if (shape === 'ring') {
 // 1: 3d tilted neon torus (cyan)
@@ -1194,8 +1285,8 @@ r * 7 + c
 }
 }
 
-// draw clear incoming spawn reticles
-// shows target lock + mini 3d shape
+// draw flat contour spawn blueprints
+// small hollow outlines without glow
 for (
 let i = 0;
 i < previews.length;
@@ -1208,71 +1299,114 @@ continue;
 const sig = getSignal(p.color);
 const x = (p.c + 0.5) * step;
 const y = (p.r + 0.5) * step;
-const wave =
-1 + Math.sin(time * 6 + i) * 0.1;
-const br = nodeR * 0.82 * wave;
-const cr = br * 0.45;
+const w =
+0.5 +
+0.5 * Math.sin(time * 3.8 + i * 1.9);
+const pr =
+nodeR * (0.21 + 0.16 * w);
+const sh = sig.shape;
 
-// dark contrast well over gold pad
-// makes spawn beacon pop on tracks
-ctx.fillStyle =
-'rgba(2, 6, 12, 0.88)';
-ctx.beginPath();
-ctx.arc(
-x,
-y,
-nodeR * 0.74,
-0,
-Math.PI * 2
-);
-ctx.fill();
-
-// pulsing neon target-lock brackets
-// frames intersection where it spawns
 ctx.save();
 ctx.translate(x, y);
-ctx.strokeStyle = sig.glow;
-ctx.lineWidth = 4.2;
+ctx.globalAlpha = 0.42 + 0.36 * w;
+
+// tiny dark pinhole over gold socket
+// gives contour contrast without glow
+ctx.fillStyle =
+'rgba(2, 6, 12, 0.58)';
 ctx.beginPath();
-ctx.arc(
+ctx.arc(0, 0, pr * 1.12, 0, 6.283);
+ctx.fill();
+
+// trace flat 2d silhouette of shape
+// zero 3d fill so it never looks real
+ctx.beginPath();
+if (sh === 'ring') {
+ctx.arc(0, 0, pr, 0, 6.283);
+ctx.moveTo(pr * 0.45, 0);
+ctx.arc(0, 0, pr * 0.45, 0, 6.283);
+} else if (sh === 'diamond') {
+ctx.moveTo(0, -pr * 1.08);
+ctx.lineTo(pr * 0.88, 0);
+ctx.lineTo(0, pr * 1.08);
+ctx.lineTo(-pr * 0.88, 0);
+ctx.closePath();
+} else if (sh === 'triangle') {
+ctx.moveTo(0, -pr * 1.08);
+ctx.lineTo(pr * 0.96, pr * 0.76);
+ctx.lineTo(-pr * 0.96, pr * 0.76);
+ctx.closePath();
+} else if (sh === 'hex') {
+for (let k = 0; k < 6; k++) {
+const a = k * 1.047 - 1.57;
+const vx = Math.cos(a) * pr;
+const vy = Math.sin(a) * pr;
+if (k === 0) {
+ctx.moveTo(vx, vy);
+} else {
+ctx.lineTo(vx, vy);
+}
+}
+ctx.closePath();
+} else if (sh === 'star') {
+ctx.moveTo(0, -pr * 1.08);
+ctx.lineTo(pr, pr * 0.52);
+ctx.lineTo(0, pr * 0.92);
+ctx.lineTo(-pr, pr * 0.52);
+ctx.closePath();
+} else if (sh === 'bolt') {
+ctx.arc(0, 0, pr * 0.92, 0, 6.283);
+ctx.moveTo(-pr * 0.92, 0);
+ctx.lineTo(pr * 0.92, 0);
+} else if (sh === 'chip') {
+ctx.moveTo(0, -pr * 1.1);
+ctx.lineTo(pr * 0.7, -pr * 0.46);
+ctx.lineTo(pr * 0.7, pr * 0.46);
+ctx.lineTo(0, pr * 1.1);
+ctx.lineTo(-pr * 0.7, pr * 0.46);
+ctx.lineTo(-pr * 0.7, -pr * 0.46);
+ctx.closePath();
+} else {
+ctx.ellipse(
 0,
 0,
-nodeR * 0.66 * wave,
+pr * 1.05,
+pr * 0.44,
+0.6,
 0,
-Math.PI * 2
+6.283
 );
+ctx.ellipse(
+0,
+0,
+pr * 1.05,
+pr * 0.44,
+-0.6,
+0,
+6.283
+);
+}
+
+// thin dark backing + crisp outline
+// no neon glow so it reads as ghost
+ctx.strokeStyle =
+'rgba(2, 6, 12, 0.85)';
+ctx.lineWidth = 3.2;
 ctx.stroke();
 
 ctx.strokeStyle = sig.hex;
-ctx.lineWidth = 2.2;
-ctx.beginPath();
-ctx.moveTo(-br, -cr);
-ctx.lineTo(-br, -br);
-ctx.lineTo(-cr, -br);
-ctx.moveTo(cr, -br);
-ctx.lineTo(br, -br);
-ctx.lineTo(br, -cr);
-ctx.moveTo(br, cr);
-ctx.lineTo(br, br);
-ctx.lineTo(cr, br);
-ctx.moveTo(-cr, br);
-ctx.lineTo(-br, br);
-ctx.lineTo(-br, cr);
+ctx.lineWidth = 1.6;
+ctx.setLineDash([3, 2]);
 ctx.stroke();
-ctx.restore();
+ctx.setLineDash([]);
 
-// miniature 3d holo-construct inside
-// shows exact incoming shape & color
-drawSignalNode(
-ctx,
-p.color,
-x,
-y,
-nodeR * 0.52 * wave,
-time,
-false,
-1
-);
+// tiny center pin dot in signal hue
+// marks exact socket intersection xy
+ctx.fillStyle = sig.light || sig.hex;
+ctx.beginPath();
+ctx.arc(0, 0, 1.6, 0, 6.283);
+ctx.fill();
+ctx.restore();
 }
 
 // draw stationary energy clots
