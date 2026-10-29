@@ -1051,7 +1051,15 @@ col * 311.7 +
 pcbSeed
 ) * 43758.5
 ) % 1;
-const pat = Math.floor(h * 8);
+// leave some board bays empty
+// skip ~38% so pcb is not crowded
+if (h < 0.38) {
+continue;
+}
+const pat =
+Math.floor(
+((h - 0.38) / 0.62) * 8
+);
 const jx =
 ((h * 97) % 1 - 0.5) * step * 0.08;
 const jy =
