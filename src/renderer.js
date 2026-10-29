@@ -48,10 +48,6 @@ key: '',
 canvas: null,
 };
 
-// store pre-rendered plasma sprites
-// avoids slow gradients every frame
-const signalSprites = new Map();
-
 // get signal object by color id 1..8
 // returns cyan if id is out of range
 export function getSignal(colorId) {
@@ -92,85 +88,24 @@ ctx.lineTo(x, y + c);
 ctx.closePath();
 }
 
-// draw inner shape icon inside node
-// gives each signal a unique glyph
-function drawCoreIcon(
+// trace chunky sculpted energy clot
+// each signal has bold silhouette
+function traceClotShape(
 ctx,
 shape,
-x,
-y,
-r,
-colorStr = '#ffffff',
-lineW = 0
+r
 ) {
-ctx.save();
-ctx.translate(x, y);
-ctx.strokeStyle = colorStr;
-ctx.fillStyle = colorStr;
-ctx.lineWidth =
-lineW || Math.max(1.8, r * 0.2);
-ctx.lineCap = 'round';
-ctx.lineJoin = 'round';
-
+ctx.beginPath();
 if (shape === 'ring') {
-ctx.beginPath();
-ctx.arc(
-0,
-0,
-r * 0.42,
-0,
-Math.PI * 2
-);
-ctx.stroke();
-ctx.beginPath();
-ctx.arc(
-0,
-0,
-r * 0.14,
-0,
-Math.PI * 2
-);
-ctx.fill();
-} else if (shape === 'diamond') {
-const s = r * 0.48;
-ctx.beginPath();
-ctx.moveTo(0, -s);
-ctx.lineTo(s, 0);
-ctx.lineTo(0, s);
-ctx.lineTo(-s, 0);
-ctx.closePath();
-ctx.stroke();
-} else if (shape === 'triangle') {
-const s = r * 0.48;
-ctx.beginPath();
-ctx.moveTo(0, -s);
-ctx.lineTo(s * 0.92, s * 0.75);
-ctx.lineTo(-s * 0.92, s * 0.75);
-ctx.closePath();
-ctx.stroke();
-} else if (shape === 'hex') {
-const s = r * 0.46;
-ctx.beginPath();
-for (let i = 0; i < 6; i++) {
-const a = (i * Math.PI) / 3;
-const px = Math.cos(a) * s;
-const py = Math.sin(a) * s;
-if (i === 0) {
-ctx.moveTo(px, py);
-} else {
-ctx.lineTo(px, py);
-}
-}
-ctx.closePath();
-ctx.stroke();
-} else if (shape === 'star') {
-const outer = r * 0.52;
-const inner = r * 0.22;
-ctx.beginPath();
-for (let i = 0; i < 8; i++) {
-const a = (i * Math.PI) / 4;
+// 8-scallop plasma torus cushion
+// rounded ring with 8 soft ridges
+const steps = 48;
+for (let i = 0; i <= steps; i++) {
+const a =
+(i / steps) * Math.PI * 2;
 const rad =
-i % 2 === 0 ? outer : inner;
+r *
+(0.92 + 0.08 * Math.cos(a * 8));
 const px = Math.cos(a) * rad;
 const py = Math.sin(a) * rad;
 if (i === 0) {
@@ -180,33 +115,81 @@ ctx.lineTo(px, py);
 }
 }
 ctx.closePath();
-ctx.fill();
+} else if (shape === 'diamond') {
+// crisp 3d cut sapphire rhombus
+// bold 4-sided diamond crystal
+ctx.moveTo(0, -r * 1.1);
+ctx.lineTo(r * 0.94, 0);
+ctx.lineTo(0, r * 1.1);
+ctx.lineTo(-r * 0.94, 0);
+ctx.closePath();
+} else if (shape === 'triangle') {
+// plump 3-lobe delta shield clot
+// upward pointing 3-petal plasma
+const steps = 36;
+for (let i = 0; i <= steps; i++) {
+const a =
+(i / steps) * Math.PI * 2;
+const rad =
+r *
+(0.82 +
+0.26 *
+Math.cos(a * 3 - Math.PI / 2));
+const px = Math.cos(a) * rad;
+const py = Math.sin(a) * rad;
+if (i === 0) {
+ctx.moveTo(px, py);
+} else {
+ctx.lineTo(px, py);
+}
+}
+ctx.closePath();
+} else if (shape === 'hex') {
+// chunky hexagonal plasma prism
+// bold 6-sided crystal polygon
+for (let i = 0; i < 6; i++) {
+const a =
+(i * Math.PI) / 3 - Math.PI / 6;
+const px = Math.cos(a) * r * 1.02;
+const py = Math.sin(a) * r * 1.02;
+if (i === 0) {
+ctx.moveTo(px, py);
+} else {
+ctx.lineTo(px, py);
+}
+}
+ctx.closePath();
+} else if (shape === 'star') {
+// plump 5-lobed ruby starburst
+// thick 5-point energy silhouette
+const steps = 45;
+for (let i = 0; i <= steps; i++) {
+const a =
+(i / steps) * Math.PI * 2;
+const rad =
+r *
+(0.78 +
+0.28 *
+Math.cos(a * 5 - Math.PI / 2));
+const px = Math.cos(a) * rad;
+const py = Math.sin(a) * rad;
+if (i === 0) {
+ctx.moveTo(px, py);
+} else {
+ctx.lineTo(px, py);
+}
+}
+ctx.closePath();
 } else if (shape === 'bolt') {
-const s = r * 0.52;
-ctx.beginPath();
-ctx.moveTo(s * 0.2, -s);
-ctx.lineTo(-s * 0.45, s * 0.05);
-ctx.lineTo(s * 0.05, s * 0.05);
-ctx.lineTo(-s * 0.2, s);
-ctx.lineTo(s * 0.45, -s * 0.05);
-ctx.lineTo(-s * 0.05, -s * 0.05);
-ctx.closePath();
-ctx.fill();
-} else if (shape === 'chip') {
-const s = r * 0.34;
-ctx.strokeRect(-s, -s, s * 2, s * 2);
-ctx.fillRect(
--s * 0.4,
--s * 0.4,
-s * 0.8,
-s * 0.8
-);
-} else if (shape === 'spiral') {
-ctx.beginPath();
-for (let i = 0; i <= 20; i++) {
-const t = i / 20;
-const a = t * Math.PI * 3.1;
-const rad = t * r * 0.5;
+// chunky 4-lobe orthogonal cross
+// bold + shaped solar plasma clot
+const steps = 40;
+for (let i = 0; i <= steps; i++) {
+const a =
+(i / steps) * Math.PI * 2;
+const rad =
+r *
+(0.76 + 0.28 * Math.cos(a * 4));
 const px = Math.cos(a) * rad;
 const py = Math.sin(a) * rad;
 if (i === 0) {
@@ -215,119 +198,52 @@ ctx.moveTo(px, py);
 ctx.lineTo(px, py);
 }
 }
-ctx.stroke();
+ctx.closePath();
+} else if (shape === 'chip') {
+// diagonal 4-petal butterfly clot
+// bold x-shaped bio-plasma form
+const steps = 40;
+for (let i = 0; i <= steps; i++) {
+const a =
+(i / steps) * Math.PI * 2;
+const rad =
+r *
+(0.76 +
+0.28 *
+Math.cos(a * 4 - Math.PI));
+const px = Math.cos(a) * rad;
+const py = Math.sin(a) * rad;
+if (i === 0) {
+ctx.moveTo(px, py);
+} else {
+ctx.lineTo(px, py);
 }
-ctx.restore();
 }
-
-// build cached plasma signal sprite
-// bakes radial energy aura & core
-function getSignalSprite(colorId) {
-const sig = getSignal(colorId);
-const key = sig.key + '_' + sig.hex;
-if (signalSprites.has(key)) {
-return signalSprites.get(key);
+ctx.closePath();
+} else {
+// 6-pointed quantum star crystal
+// sculpted 6-ray platinum pulsar
+const steps = 48;
+for (let i = 0; i <= steps; i++) {
+const a =
+(i / steps) * Math.PI * 2;
+const rad =
+r *
+(0.78 + 0.25 * Math.cos(a * 6));
+const px = Math.cos(a) * rad;
+const py = Math.sin(a) * rad;
+if (i === 0) {
+ctx.moveTo(px, py);
+} else {
+ctx.lineTo(px, py);
 }
-const sz = 148;
-const c =
-document.createElement('canvas');
-c.width = sz;
-c.height = sz;
-const cx = c.getContext('2d');
-const mid = sz / 2;
-const r = 36;
-cx.translate(mid, mid);
-
-// draw wide soft plasma energy field
-// gives pure glowing signal presence
-const field = cx.createRadialGradient(
-0,
-0,
-r * 0.1,
-0,
-0,
-r * 1.95
-);
-field.addColorStop(0, '#ffffff');
-field.addColorStop(
-0.22,
-sig.light || sig.hex
-);
-field.addColorStop(0.5, sig.hex);
-field.addColorStop(0.78, sig.glow);
-field.addColorStop(
-1,
-'rgba(0, 0, 0, 0)'
-);
-cx.fillStyle = field;
-cx.beginPath();
-cx.arc(
-0,
-0,
-r * 1.95,
-0,
-Math.PI * 2
-);
-cx.fill();
-
-// draw concentrated plasma nucleus
-// hot white center fading to neon hue
-const core = cx.createRadialGradient(
-0,
-0,
-0,
-0,
-0,
-r * 0.78
-);
-core.addColorStop(0, '#ffffff');
-core.addColorStop(
-0.42,
-sig.light || '#ffffff'
-);
-core.addColorStop(0.82, sig.hex);
-core.addColorStop(
-1,
-'rgba(0, 0, 0, 0)'
-);
-cx.fillStyle = core;
-cx.beginPath();
-cx.arc(
-0,
-0,
-r * 0.78,
-0,
-Math.PI * 2
-);
-cx.fill();
-
-// draw high-contrast signal glyph
-// makes color readable at a glance
-drawCoreIcon(
-cx,
-sig.shape,
-0,
-0,
-r * 0.72,
-sig.dark || '#04120a',
-3.8
-);
-drawCoreIcon(
-cx,
-sig.shape,
-0,
-0,
-r * 0.72,
-'#ffffff',
-2.0
-);
-
-signalSprites.set(key, c);
-return c;
+}
+ctx.closePath();
+}
 }
 
-// draw pulsating energy signal node
-// animates live plasma rings & sparks
+// draw pseudo-3d shaped energy clot
+// volumetric gem with bevel & gloss
 export function drawSignalNode(
 ctx,
 colorId,
@@ -339,115 +255,206 @@ isSelected = false,
 groupSize = 1
 ) {
 const sig = getSignal(colorId);
-const sprite =
-getSignalSprite(colorId);
 const phase =
-(x * 0.03 + y * 0.05) % 6.28;
-const speed =
+(x * 0.04 + y * 0.06) % 6.28;
+const freq =
 groupSize >= 6
-? 18
-: groupSize === 5
-? 11
+? 14
 : isSelected
-? 13
-: 6.5;
+? 10
+: 5.5;
 const amp =
 groupSize >= 6
-? 0.13
+? 0.09
 : isSelected
-? 0.11
-: 0.07;
+? 0.08
+: 0.045;
 const pulse =
 1 +
-Math.sin(time * speed + phase) *
-amp;
-const r = radius * pulse;
-const drawSz = (r / 36) * 148;
+Math.sin(time * freq + phase) * amp;
 
-// blit cached glowing plasma core
-// fast 60fps base without shadowblur
-ctx.drawImage(
-sprite,
-x - drawSz * 0.5,
-y - drawSz * 0.5,
-drawSz,
-drawSz
-);
+// full readable size on the pcb cell
+// pops clearly above golden socket
+const r = radius * 1.02 * pulse;
 
-// draw live undulating plasma corona
-// two counter-rotating electric rings
 ctx.save();
 ctx.translate(x, y);
-for (let ring = 0; ring < 2; ring++) {
-const dir = ring === 0 ? 1 : -1;
-const rot =
-time * (2.2 + ring * 1.1) * dir +
-phase;
+
+// gentle idle wobble or active spin
+// keeps 3d highlight oriented well
+const rot = isSelected
+? Math.sin(time * 6) * 0.14
+: Math.sin(time * 2.2 + phase) *
+0.05;
+
+// layer 1: tight colored outer aura
+// subtle energy rim around silhouette
+ctx.save();
+ctx.rotate(rot);
+ctx.fillStyle = sig.glow;
+ctx.globalAlpha = isSelected
+? 0.55
+: 0.28;
+traceClotShape(
+ctx,
+sig.shape,
+r * 1.16
+);
+ctx.fill();
+ctx.restore();
+
+// layer 2: dark contact drop shadow
+// lifts 3d clot off the green board
+ctx.save();
+ctx.translate(0, r * 0.16);
+ctx.rotate(rot);
+ctx.fillStyle = 'rgba(0, 5, 3, 0.84)';
+traceClotShape(
+ctx,
+sig.shape,
+r * 1.06
+);
+ctx.fill();
+ctx.restore();
+
+// layer 3: 3d extruded bottom bevel
+// physical depth wall under the clot
+ctx.save();
+ctx.translate(0, r * 0.1);
+ctx.rotate(rot);
+ctx.fillStyle = sig.dark || '#05101a';
+ctx.strokeStyle = '#020805';
+ctx.lineWidth = 1.6;
+ctx.lineJoin = 'round';
+traceClotShape(
+ctx,
+sig.shape,
+r * 1.01
+);
+ctx.fill();
+ctx.stroke();
+ctx.restore();
+
+// layer 4: volumetric 3d shaded body
+// rich saturated color with 3d depth
+ctx.save();
+ctx.rotate(rot);
+const bodyGrad =
+ctx.createRadialGradient(
+-r * 0.3,
+-r * 0.34,
+r * 0.04,
+0,
+0,
+r * 1.06
+);
+bodyGrad.addColorStop(
+0,
+sig.light || '#ffffff'
+);
+bodyGrad.addColorStop(0.34, sig.hex);
+bodyGrad.addColorStop(0.74, sig.hex);
+bodyGrad.addColorStop(
+1,
+sig.dark || '#05101a'
+);
+ctx.fillStyle = bodyGrad;
 ctx.strokeStyle =
-ring === 0
-? sig.light || '#ffffff'
-: sig.hex;
-ctx.lineWidth =
-ring === 0 ? 2.0 : 1.5;
+sig.light || '#ffffff';
+ctx.lineWidth = 1.8;
+ctx.lineJoin = 'round';
+traceClotShape(ctx, sig.shape, r);
+ctx.fill();
+ctx.stroke();
+
+// layer 5: inner 3d sculpted core
+// torus groove or faceted inner gem
+if (sig.shape === 'ring') {
+ctx.fillStyle = sig.dark || '#042a33';
 ctx.beginPath();
-const steps = 20;
-for (let i = 0; i <= steps; i++) {
-const a =
-(i / steps) * Math.PI * 2;
-const wave =
-Math.sin(
-a * (3 + ring) + rot * 2.5
-) *
-radius *
-0.11;
-const rad =
-r * (0.68 + ring * 0.16) + wave;
-const px = Math.cos(a) * rad;
-const py = Math.sin(a) * rad;
-if (i === 0) {
-ctx.moveTo(px, py);
+ctx.arc(0, 0, r * 0.42, 0, 6.28);
+ctx.fill();
+ctx.strokeStyle =
+sig.light || '#ffffff';
+ctx.lineWidth = 1.6;
+ctx.stroke();
+
+ctx.fillStyle = '#ffffff';
+ctx.beginPath();
+ctx.arc(0, 0, r * 0.18, 0, 6.28);
+ctx.fill();
 } else {
-ctx.lineTo(px, py);
-}
-}
-ctx.closePath();
+const coreGrad =
+ctx.createRadialGradient(
+-r * 0.1,
+-r * 0.12,
+0,
+0,
+0,
+r * 0.52
+);
+coreGrad.addColorStop(0, '#ffffff');
+coreGrad.addColorStop(
+0.42,
+sig.light || '#ffffff'
+);
+coreGrad.addColorStop(1, sig.hex);
+ctx.fillStyle = coreGrad;
+traceClotShape(
+ctx,
+sig.shape,
+r * 0.48
+);
+ctx.fill();
+ctx.strokeStyle =
+'rgba(255, 255, 255, 0.72)';
+ctx.lineWidth = 1.1;
 ctx.stroke();
 }
+ctx.restore();
 
-// draw 3 orbiting energy micro-sparks
-// circles around active signal core
-ctx.fillStyle = '#ffffff';
-for (let s = 0; s < 3; s++) {
-const ang =
-time * 3.8 +
-phase +
-(s * Math.PI * 2) / 3;
-const dist =
-r *
-(0.84 +
-Math.sin(time * 8 + s) * 0.08);
-const sx = Math.cos(ang) * dist;
-const sy = Math.sin(ang) * dist;
+// layer 6: 3d specular gloss glint
+// bright top-left reflection bead
+ctx.save();
+ctx.translate(-r * 0.27, -r * 0.29);
+ctx.rotate(-0.55);
+ctx.scale(1, 0.52);
+ctx.fillStyle =
+'rgba(255, 255, 255, 0.92)';
 ctx.beginPath();
-ctx.arc(sx, sy, 1.9, 0, Math.PI * 2);
+ctx.arc(0, 0, r * 0.24, 0, 6.28);
 ctx.fill();
-}
+ctx.restore();
 
-// draw expanding pulse wave if picked
-// shows active signal ready to travel
-if (isSelected) {
-const sonar = (time * 1.8) % 1;
-ctx.strokeStyle = '#ffffff';
-ctx.lineWidth = 2.4 * (1 - sonar);
+// secondary bottom-right rim glint
+// completes 3d refractive look
+ctx.fillStyle =
+'rgba(255, 255, 255, 0.48)';
 ctx.beginPath();
 ctx.arc(
+r * 0.22,
+r * 0.22,
+Math.max(1.5, r * 0.085),
 0,
-0,
-radius * (0.85 + sonar * 0.75),
-0,
-Math.PI * 2
+6.28
 );
+ctx.fill();
+
+// draw crisp selection bracket ring
+// shows active signal ready to move
+if (isSelected) {
+ctx.rotate(time * 2.4);
+ctx.strokeStyle = '#ffffff';
+ctx.lineWidth = 2.2;
+for (let i = 0; i < 4; i++) {
+const a0 =
+(Math.PI / 2) * i + 0.22;
+const a1 =
+(Math.PI / 2) * (i + 1) - 0.22;
+ctx.beginPath();
+ctx.arc(0, 0, r * 1.24, a0, a1);
 ctx.stroke();
+}
 }
 ctx.restore();
 }
@@ -595,8 +602,6 @@ ctx.arc(ax, ay, 2.2, 0, Math.PI * 2);
 ctx.arc(bx, by, 2.2, 0, Math.PI * 2);
 ctx.fill();
 } else if ((r * 3 + col) % 4 === 1) {
-// draw tiny smd capacitor component
-// dark body with two gold solder ends
 const cx = x0 + step * 0.5;
 const cy = y0 + step * 0.5;
 ctx.fillStyle = goldMain;
@@ -644,8 +649,6 @@ pinStep * 0.55
 );
 }
 
-// draw metallic gold outer board rim
-// frames the microchip substrate
 chamferRectPath(
 ctx,
 2,
@@ -714,8 +717,6 @@ for (let col = 0; col < size; col++) {
 const x = (col + 0.5) * step;
 const y = (r + 0.5) * step;
 
-// draw outer dark solder mask ring
-// separates pad from green substrate
 ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
 ctx.beginPath();
 ctx.arc(
@@ -727,8 +728,6 @@ Math.PI * 2
 );
 ctx.fill();
 
-// draw metallic gold solder ring
-// with bright specular inner rim
 ctx.fillStyle = goldMain;
 ctx.beginPath();
 ctx.arc(x, y, padR, 0, Math.PI * 2);
@@ -737,8 +736,6 @@ ctx.strokeStyle = goldHi;
 ctx.lineWidth = 1.2;
 ctx.stroke();
 
-// draw drilled dark via center hole
-// authentic circuit board contact
 ctx.fillStyle = theme.socket;
 ctx.beginPath();
 ctx.arc(
@@ -778,7 +775,7 @@ boosterMode,
 } = state;
 const size = grid.length;
 const step = width / size;
-const nodeR = step * 0.36;
+const nodeR = step * 0.37;
 
 ctx.clearRect(0, 0, width, height);
 
@@ -792,8 +789,8 @@ themeId
 );
 ctx.drawImage(cached, 0, 0);
 
-// draw pulsating energy links between
-// adjacent signals of the same color
+// draw thin pulsing energy links
+// between adjacent matching signals
 const sizeMap =
 getClusterSizeMap(grid);
 const dirs = [
@@ -839,7 +836,7 @@ r * 7 + c
 }
 }
 
-// draw pulsing target preview rings
+// draw compact preview shape outlines
 // shows where next 3 signals appear
 for (
 let i = 0;
@@ -854,37 +851,20 @@ const sig = getSignal(p.color);
 const x = (p.c + 0.5) * step;
 const y = (p.r + 0.5) * step;
 const wave =
-Math.sin(time * 6 + i) * 0.06;
-const pr = nodeR * (0.7 + wave);
+1 + Math.sin(time * 5 + i) * 0.08;
+const pr = nodeR * 0.48 * wave;
 
 ctx.save();
-ctx.fillStyle = sig.glow;
-ctx.beginPath();
-ctx.arc(
-x,
-y,
-pr * 0.85,
-0,
-Math.PI * 2
-);
-ctx.fill();
-
+ctx.translate(x, y);
 ctx.strokeStyle = sig.hex;
-ctx.lineWidth = 2;
-ctx.setLineDash([4, 4]);
-ctx.beginPath();
-ctx.arc(
-x,
-y,
-pr,
-time * 2.2,
-time * 2.2 + Math.PI * 2
-);
+ctx.lineWidth = 1.8;
+ctx.globalAlpha = 0.78;
+traceClotShape(ctx, sig.shape, pr);
 ctx.stroke();
 ctx.restore();
 }
 
-// draw stationary pulsating signals
+// draw stationary energy clots
 // skips signal currently in transit
 for (let r = 0; r < size; r++) {
 for (let c = 0; c < size; c++) {
@@ -918,14 +898,17 @@ sizeMap[r][c]
 }
 }
 
-// draw signal racing along gold track
-// leaves plasma trail and sparks
+// draw accelerating signal on track
+// no line trail, only flying sparks
 if (movingAnim) {
 const { path, progress, color } =
 movingAnim;
 const totalSegs = path.length - 1;
+const eased =
+0.22 * progress +
+0.78 * progress * progress;
 const exact =
-Math.min(0.999, progress) * totalSegs;
+Math.min(0.999, eased) * totalSegs;
 const idx = Math.floor(exact);
 const frac = exact - idx;
 const pA = path[idx];
@@ -938,43 +921,15 @@ const by = (pB.r + 0.5) * step;
 const mx = ax + (bx - ax) * frac;
 const my = ay + (by - ay) * frac;
 
-const sig = getSignal(color);
-ctx.save();
-ctx.strokeStyle = sig.glow;
-ctx.lineWidth = step * 0.24;
-ctx.lineCap = 'round';
-ctx.lineJoin = 'round';
-ctx.beginPath();
-for (let i = 0; i <= idx; i++) {
-const px = (path[i].c + 0.5) * step;
-const py = (path[i].r + 0.5) * step;
-if (i === 0) {
-ctx.moveTo(px, py);
-} else {
-ctx.lineTo(px, py);
-}
-}
-ctx.lineTo(mx, my);
-ctx.stroke();
-
-ctx.strokeStyle = sig.hex;
-ctx.lineWidth = step * 0.1;
-ctx.stroke();
-
-ctx.strokeStyle = '#ffffff';
-ctx.lineWidth = step * 0.04;
-ctx.stroke();
-ctx.restore();
-
 drawSignalNode(
 ctx,
 color,
 mx,
 my,
-nodeR * 1.12,
+nodeR * 1.06,
 time,
 false,
-6
+1
 );
 }
 
@@ -997,8 +952,8 @@ Math.min(y0, y1) - step * 0.9;
 
 ctx.save();
 ctx.strokeStyle = sig.hex;
-ctx.lineWidth = 2.8;
-ctx.setLineDash([6, 4]);
+ctx.lineWidth = 2.4;
+ctx.setLineDash([5, 4]);
 ctx.beginPath();
 ctx.moveTo(x0, y0);
 ctx.quadraticCurveTo(cx, cy, x1, y1);
@@ -1025,8 +980,8 @@ time + i * 1.7
 );
 }
 
-// draw active spark particles
-// pooled array with bright white core
+// draw flying colored track sparks
+// crisp small sparks with white core
 for (
 let i = 0;
 i < particles.length;
@@ -1057,7 +1012,7 @@ ctx.beginPath();
 ctx.arc(
 pt.x,
 pt.y,
-pt.size * 0.45,
+pt.size * 0.42,
 0,
 Math.PI * 2
 );
@@ -1088,8 +1043,8 @@ ctx.restore();
 }
 }
 
-// draw pulsating energy link on track
-// oscillates plasma wave + 2 pulses
+// draw crisp pulsing energy filament
+// vibrates gently along gold track
 function drawLitBusSegment(
 ctx,
 x0,
@@ -1106,40 +1061,20 @@ ctx.save();
 ctx.lineCap = 'round';
 ctx.lineJoin = 'round';
 
-const pulse =
-1 +
-Math.sin(time * 12 + seed) * 0.18;
-const baseW =
-step *
-(grpSize >= 6 ? 0.22 : 0.16) *
-pulse;
-
-// draw glowing plasma channel aura
-// wraps around the golden pcb track
-ctx.strokeStyle = sig.glow;
-ctx.lineWidth = baseW * 1.65;
-ctx.beginPath();
-ctx.moveTo(x0, y0);
-ctx.lineTo(x1, y1);
-ctx.stroke();
-
-// draw undulating electric sine wave
-// vibrates between connected signals
 const dx = x1 - x0;
 const dy = y1 - y0;
 const len = Math.hypot(dx, dy) || 1;
 const nx = -dy / len;
 const ny = dx / len;
-const segs = 8;
-const freq = grpSize >= 6 ? 26 : 14;
+const segs = 7;
+const freq = grpSize >= 6 ? 20 : 11;
 const amp =
-step * (grpSize >= 6 ? 0.08 : 0.045);
+step * (grpSize >= 6 ? 0.05 : 0.028);
 
+// draw thin glowing energy thread
+// keeps golden track visible beneath
 ctx.strokeStyle = sig.hex;
-ctx.lineWidth = Math.max(
-2.6,
-step * 0.065
-);
+ctx.lineWidth = 2.6;
 ctx.beginPath();
 ctx.moveTo(x0, y0);
 for (let i = 1; i < segs; i++) {
@@ -1148,39 +1083,28 @@ const bx = x0 + dx * t;
 const by = y0 + dy * t;
 const w =
 Math.sin(
-time * freq + i * 1.4 + seed
+time * freq + i * 1.5 + seed
 ) * amp;
 ctx.lineTo(bx + nx * w, by + ny * w);
 }
 ctx.lineTo(x1, y1);
 ctx.stroke();
 
-ctx.strokeStyle = '#ffffff';
-ctx.lineWidth = 1.4;
+ctx.strokeStyle =
+sig.light || '#ffffff';
+ctx.lineWidth = 1.1;
 ctx.stroke();
 
-// draw surging energy packets on link
-// travels continuously along trace
-for (let p = 0; p < 2; p++) {
+// draw small energy pulse traveling
+// moves between connected signals
 const t =
-(time * (1.8 + p * 0.6) +
-seed * 0.17 +
-p * 0.5) %
-1;
+(time * 1.6 + seed * 0.21) % 1;
 const px = x0 + dx * t;
 const py = y0 + dy * t;
-ctx.fillStyle =
-sig.light || '#ffffff';
+ctx.fillStyle = '#ffffff';
 ctx.beginPath();
-ctx.arc(
-px,
-py,
-step * 0.065,
-0,
-Math.PI * 2
-);
+ctx.arc(px, py, 2.4, 0, Math.PI * 2);
 ctx.fill();
-}
 ctx.restore();
 }
 
@@ -1198,7 +1122,7 @@ seed
 ctx.save();
 const steps = 6;
 ctx.strokeStyle = hex;
-ctx.lineWidth = 5;
+ctx.lineWidth = 4.5;
 ctx.lineCap = 'round';
 ctx.lineJoin = 'round';
 ctx.beginPath();
@@ -1208,14 +1132,14 @@ const t = i / steps;
 const bx = x0 + (x1 - x0) * t;
 const by = y0 + (y1 - y0) * t;
 const off =
-Math.sin(seed * 19 + i * 4.2) * 9;
+Math.sin(seed * 19 + i * 4.2) * 8;
 ctx.lineTo(bx + off, by - off);
 }
 ctx.lineTo(x1, y1);
 ctx.stroke();
 
 ctx.strokeStyle = '#ffffff';
-ctx.lineWidth = 2;
+ctx.lineWidth = 1.8;
 ctx.stroke();
 ctx.restore();
 }
@@ -1239,8 +1163,6 @@ const isBoost = boostTimer > 0;
 const isRainbow =
 isBoost && boostMode === 'rainbow';
 
-// fill dark cyber night sky backdrop
-// deeper contrast during warp boost
 const sky = ctx.createLinearGradient(
 0,
 0,
@@ -1258,8 +1180,6 @@ isRainbow ? '#2b0948' : '#0a192f'
 ctx.fillStyle = sky;
 ctx.fillRect(0, 0, width, height);
 
-// draw scrolling cyber horizon grid
-// moves right to left under the skate
 const horizonY = height * 0.75;
 const cityShift =
 (scrollX * 0.25) % 36;
@@ -1304,8 +1224,6 @@ ctx.lineTo(x - 14, height);
 }
 ctx.stroke();
 
-// draw scrolling neon stars & dots
-// stretches into warp streaks on 9+
 const skyBand = Math.max(
 14,
 Math.floor(horizonY - 10)
@@ -1333,8 +1251,6 @@ ctx.fillRect(sx, sy, 2, 2);
 }
 }
 
-// center fox inside dedicated window
-// leaves room on left for jet trail
 const foxX = width * 0.56;
 const freq = isBoost ? 14 : 4.5;
 const hoverBob =

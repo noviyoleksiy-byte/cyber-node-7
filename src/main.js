@@ -873,7 +873,7 @@ path: [
 { r, c },
 ],
 progress: 0,
-speed: 7.5,
+speed: 2.3,
 fromR: r0,
 fromC: c0,
 toR: r,
@@ -906,10 +906,18 @@ app.grid[r0][c0] = 0;
 app.selected = null;
 sound.playStep(path.length);
 
+const segs = Math.max(
+1,
+path.length - 1
+);
+const moveSpd = Math.max(
+1.35,
+2.5 / Math.sqrt(segs)
+);
 app.movingAnim = {
 path,
 progress: 0,
-speed: 7.2,
+speed: moveSpd,
 fromR: r0,
 fromC: c0,
 toR: r,
@@ -2069,9 +2077,11 @@ const bw = bCanvas
 : 540;
 const step = bw / app.grid.length;
 const totalSegs = ma.path.length - 1;
+const eased =
+0.22 * ma.progress +
+0.78 * ma.progress * ma.progress;
 const exact =
-Math.min(0.999, ma.progress) *
-totalSegs;
+Math.min(0.999, eased) * totalSegs;
 const idx = Math.floor(exact);
 const frac = exact - idx;
 const pA = ma.path[idx];
@@ -2091,6 +2101,12 @@ const my =
 step;
 const sig = getSignal(ma.color);
 spawnSparks(mx, my, sig.hex, 2);
+spawnSparks(
+mx,
+my,
+sig.light || '#ffffff',
+1
+);
 
 if (ma.progress >= 1) {
 app.movingAnim = null;
